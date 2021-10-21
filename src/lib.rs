@@ -49,6 +49,23 @@ mod tests {
         builder.predecessor_account_id(predecessor);
         builder
     }
+    
+    #[test]
+    fn debug_get_hash() {
+        testing_env!(VMContextBuilder::new().build());
+
+        let debug_solution = "near nomicon ref finance";
+        let debug_hash_bytes = env::sha256(debug_solution.as_bytes());
+        let debug_hash_string = hex::encode(debug_hash_bytes);
+        println!("Let's debug: {:?}", debug_hash_string);
+    }
+
+    #[test]
+    fn check_guess_solution() {
+        let alice = AccountId::new_unchecked("alice.testnet".to_string());
+        let context = get_context(alice);
+        testing_env!(context.build());
+    }
 
     // TESTS HERE
 }
