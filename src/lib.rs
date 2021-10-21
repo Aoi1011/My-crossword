@@ -11,6 +11,13 @@ pub struct Contract {
 
 #[near_bindgen]
 impl Contract {
+    #[init]
+    pub fn new(solution: String) -> Self {
+        Self {
+            crossword_solution: solution,
+        }
+    }
+
     pub fn get_puzzle_number(&self) -> u8 {
         PUZZLE_NUMBER
     }
