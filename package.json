@@ -1,0 +1,23 @@
+{
+  "name": "my-crossword",
+  "version": "1.0.0",
+  "description": "## Getting started",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aoi1011/My-crossword.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Aoi1011/My-crossword/issues"
+  },
+  "homepage": "https://github.com/Aoi1011/My-crossword#readme",
+  "devDependencies": {
+    "near-cli": "^2.1.1"
+  }
+}
