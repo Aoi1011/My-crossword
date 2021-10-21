@@ -49,7 +49,6 @@ mod tests {
         builder.predecessor_account_id(predecessor);
         builder
     }
-    
     #[test]
     fn debug_get_hash() {
         testing_env!(VMContextBuilder::new().build());
@@ -65,6 +64,23 @@ mod tests {
         let alice = AccountId::new_unchecked("alice.testnet".to_string());
         let context = get_context(alice);
         testing_env!(context.build());
+
+        let mut contract = Contract::default();
+
+        contract.set_solution(
+            "69c2feb084439956193f4c21936025f14a5a5a78979d67ae34762e18a7206a0f".to_string(),
+        );
+        contract.guess_solution("wrong answer here".to_string());
+        assert_eq!(get_logs(), ["Try again!"], "Expected a failure log.");
+
+        contract.guess_solution(
+            "69c2feb084439956193f4c21936025f14a5a5a78979d67ae34762e18a7206a0f".to_string(),
+        );
+        assert_eq!(
+            get_logs(),
+            ["Try again!", "You guessed right!"],
+            "Expected to successfull log after the previous failed logs"
+        );
     }
 
     // TESTS HERE
