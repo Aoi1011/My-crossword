@@ -26,11 +26,17 @@ impl Contract {
         self.crossword_solution = solution;
     }
 
-    pub fn guess_solution(&mut self, solution: String) {
+    pub fn get_solution(&self) -> String {
+        self.crossword_solution.clone()
+    }
+
+    pub fn guess_solution(&mut self, solution: String) -> bool {
         if solution == self.crossword_solution {
             env::log_str("You guessed right!");
+            true
         } else {
-            env::log_str("Try again!")
+            env::log_str("Try again!");
+            false
         }
     }
 }
