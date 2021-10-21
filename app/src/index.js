@@ -2,16 +2,25 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
-import reportWebVitals from './reportWebVitals';
+import getConfig from "./config.js";
+import { viewMethodOnContract } from "./utils";
+import { data } from "./hardcoded-data";
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
+async function initCrossword() {
+  const nearConfig = getConfig(process.env.NEAR_ENV || 'testnet');
+  const solutionHash = await viewMethodOnContract(nearConfig, 'get_solution');
+  return { data, solutionHash };
+}
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+initCrossword()
+  .then(({ data, solutionHash }) => {
+    ReactDOM.render(
+      <React.StrictMode>
+        <App
+          data={data}
+          solutionHash={solutionHash}
+        />
+      </React.StrictMode>,
+      document.getElementById('root')
+    );
+  });
