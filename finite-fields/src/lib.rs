@@ -68,6 +68,31 @@ impl FieldElement {
         }
     }
 
+    pub fn mul(&self, other: Option<FieldElement>) -> Self {
+        if other.is_none() {
+            panic!("other is none");
+        }
+
+        let other = other.unwrap();
+        if self.prime != other.prime {
+            panic!("cannot multiply two numbers in different Fields");
+        }
+
+        let num = self.modulo(self.num * other.num);
+        Self {
+            num,
+            prime: self.prime,
+        }
+    }
+
+    pub fn pow(&self, exponent: u32) -> Self {
+        let num = self.modulo(self.num.pow(exponent));
+        Self {
+            num,
+            prime: self.prime,
+        }
+    }
+
     fn modulo(&self, b: i32) -> i32 {
         let result = b % self.prime;
         if result < 0 {
@@ -123,5 +148,14 @@ mod tests {
         let c = FieldElement::new(6, 13);
 
         assert_eq!(a.add(Some(b)), c);
+    }
+
+    #[test]
+    fn test_mul() {
+        let a = FieldElement::new(3, 13);
+        let b = FieldElement::new(12, 13);
+        let c = FieldElement::new(10, 13);
+
+        assert_eq!(a.mul(Some(b)), c);
     }
 }
