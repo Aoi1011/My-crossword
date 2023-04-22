@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub struct FieldElement {
     num: i32,
     prime: i32,
@@ -43,7 +44,24 @@ impl FieldElement {
             panic!("cannot add two numbers in different Fields");
         }
 
-        let num = self.modulo(other.num);
+        let num = self.modulo(self.num + other.num);
+        Self {
+            num,
+            prime: self.prime,
+        }
+    }
+
+    pub fn sub(&self, other: Option<FieldElement>) -> Self {
+        if other.is_none() {
+            panic!("other is none");
+        }
+
+        let other = other.unwrap();
+        if self.prime != other.prime {
+            panic!("cannot subtract two numbers in different Fields");
+        }
+
+        let num = self.modulo(self.num - other.num);
         Self {
             num,
             prime: self.prime,
@@ -51,7 +69,7 @@ impl FieldElement {
     }
 
     fn modulo(&self, b: i32) -> i32 {
-        let result = (self.num + b) % self.prime;
+        let result = b % self.prime;
         if result < 0 {
             result + self.prime
         } else {
@@ -83,15 +101,27 @@ mod tests {
         let prime = 57;
 
         let field_element_1 = FieldElement::new(44, prime);
-        assert_eq!(20, field_element_1.modulo(33));
+        assert_eq!(20, field_element_1.modulo(field_element_1.num + 33));
 
         let field_element_2 = FieldElement::new(9, prime);
-        assert_eq!(37, field_element_2.modulo(-29));
+        assert_eq!(37, field_element_2.modulo(field_element_2.num + -29));
 
         let field_element_3 = FieldElement::new(17, prime);
-        assert_eq!(51, field_element_3.modulo(42 + 49));
+        assert_eq!(51, field_element_3.modulo(field_element_3.num + 42 + 49));
 
         let field_element_4 = FieldElement::new(52, prime);
-        assert_eq!(41, field_element_4.modulo(- 30 - 38) % prime);
+        assert_eq!(
+            41,
+            field_element_4.modulo(field_element_4.num + -30 - 38) % prime
+        );
+    }
+
+    #[test]
+    fn test_add() {
+        let a = FieldElement::new(7, 13);
+        let b = FieldElement::new(12, 13);
+        let c = FieldElement::new(6, 13);
+
+        assert_eq!(a.add(Some(b)), c);
     }
 }
