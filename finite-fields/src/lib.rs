@@ -85,10 +85,32 @@ impl FieldElement {
         }
     }
 
-    pub fn pow(&self, exponent: u32) -> Self {
-        let num = self.modulo(self.num.pow(exponent));
+    pub fn pow(&self, exponent: i32) -> Self {
+        let mut n = exponent;
+        while n < 0 {
+            n += self.prime - 1;
+        }
+        let num = self.modulo(self.num.pow(n as u32));
         Self {
             num,
+            prime: self.prime,
+        }
+    }
+
+    pub fn true_dev(&self, other: Option<FieldElement>) -> Self {
+        let other = other.unwrap();
+        if self.prime != other.prime {
+            panic!("cannot divide two numbers in different Fields");
+        }
+
+        // use Fermat's little theorem
+        // self.num.pow(p-1) % p == 1
+        // this means:
+        // 1/n == pow(n, p-2, p)
+        let num = self.num * other.num.pow(self.prime as u32 - 2);
+        let modulo = self.modulo(num);
+        Self {
+            num: modulo,
             prime: self.prime,
         }
     }
@@ -170,5 +192,22 @@ mod tests {
         }
 
         println!("{sets:?}");
+    }
+
+    #[test]
+    fn test_pow() {
+        let a = FieldElement::new(7, 13);
+        let b = FieldElement::new(8, 13);
+
+        assert_eq!(a.pow(-3), b);
+    }
+
+    #[test]
+    fn test_true_dev() {
+        let a = FieldElement::new(2, 19);
+        let b = FieldElement::new(7, 19);
+        let c = FieldElement::new(3, 19);
+
+        assert_eq!(a.true_dev(Some(b)), c);
     }
 }
