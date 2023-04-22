@@ -158,4 +158,17 @@ mod tests {
 
         assert_eq!(a.mul(Some(b)), c);
     }
+
+    #[test]
+    fn test_example_pow() {
+        let samples = Vec::from([7, 11, 13, 17]);
+        let mut sets: Vec<Vec<u128>> = Vec::new();
+
+        for p in samples {
+            let pow_p: Vec<u128> = (1..=p - 1).map(|n: u128| n.pow(p as u32 - 1) % p).collect();
+            sets.push(pow_p);
+        }
+
+        println!("{sets:?}");
+    }
 }
