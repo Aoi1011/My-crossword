@@ -40,6 +40,17 @@ impl Point {
                     b: self.b,
                 }
             }
+            (Some(self_x), Some(other_x)) if self_x != other_x => {
+                let s = (other.y.unwrap() - self.y.unwrap()) / (other.x.unwrap() - self.x.unwrap());
+                let x3 = s.pow(2) - self.x.unwrap() - other.x.unwrap();
+                let y3 = s * (self.x.unwrap() - x3) - self.y.unwrap();
+                return Self {
+                    x: Some(x3),
+                    y: Some(y3),
+                    a: self.a,
+                    b: self.b,
+                };
+            }
             (Some(_), None) => return *self,
             (None, Some(_)) => return other,
             _ => Self {
@@ -66,10 +77,16 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let point1 = Point::new(Some(-1), Some(-1), 5, 7);
-        let point2 = Point::new(Some(-1), Some(1), 5, 7);
+        let mut point1 = Point::new(Some(-1), Some(-1), 5, 7);
+        let mut point2 = Point::new(Some(-1), Some(1), 5, 7);
         let inf = Point::new(None, None, 5, 7);
 
         assert_eq!(point1.add(point2), inf);
+
+        point1 = Point::new(Some(2), Some(5), 5, 7);
+        point2 = Point::new(Some(-1), Some(-1), 5, 7);
+        let point3 = Point::new(Some(3), Some(-7), 5, 7);
+
+        assert_eq!(point1.add(point2), point3);
     }
 }
