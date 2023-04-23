@@ -106,11 +106,10 @@ impl FieldElement {
         // use Fermat's little theorem
         // self.num.pow(p-1) % p == 1
         // this means:
-        // 1/n == pow(n, p-2, p)
-        let num = self.num * other.num.pow(self.prime as u32 - 2);
-        let modulo = self.modulo(num);
+        // 1/n == pow(n, p-2, p) in Python
+        let result = self.num * self.pow_mod(other.num);
         Self {
-            num: modulo,
+            num: result % self.prime,
             prime: self.prime,
         }
     }
@@ -122,6 +121,22 @@ impl FieldElement {
         } else {
             result
         }
+    }
+
+    fn pow_mod(&self, base: i32) -> i32 {
+        let mut result = 1;
+        let mut base = base;
+        let mut exponent = self.prime - 2;
+        let modules = self.prime;
+
+        while exponent > 0 {
+            if exponent % 2 == 1 {
+                result = (result * base) % modules;
+            }
+            base = (base * base) % modules;
+            exponent /= 2;
+        }
+        result
     }
 }
 
@@ -204,9 +219,15 @@ mod tests {
 
     #[test]
     fn test_true_dev() {
-        let a = FieldElement::new(2, 19);
-        let b = FieldElement::new(7, 19);
-        let c = FieldElement::new(3, 19);
+        let mut a = FieldElement::new(2, 19);
+        let mut b = FieldElement::new(7, 19);
+        let mut c = FieldElement::new(3, 19);
+
+        assert_eq!(a.true_dev(Some(b)), c);
+
+        a = FieldElement::new(7, 19);
+        b = FieldElement::new(5, 19);
+        c = FieldElement::new(9, 19);
 
         assert_eq!(a.true_dev(Some(b)), c);
     }
