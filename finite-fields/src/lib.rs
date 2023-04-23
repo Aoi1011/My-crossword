@@ -16,13 +16,13 @@ impl FieldElement {
         println!("FieldElement_{}({})", self.prime, self.num);
     }
 
-    pub fn eq(&self, other: Option<FieldElement>) -> bool {
+    pub fn equal(&self, other: Option<FieldElement>) -> bool {
         if other.is_none() {
             return false;
         }
 
         let other = other.unwrap();
-        self.num == other.num && self.prime == other.prime
+        self.eq(&other)
     }
 
     pub fn ne(&self, other: Option<FieldElement>) -> bool {
@@ -148,7 +148,7 @@ mod tests {
     fn test_fieldelement_eq() {
         let element = FieldElement::new(7, 13);
         let other = FieldElement::new(6, 13);
-        assert!(!element.eq(Some(other)));
+        assert!(!element.equal(Some(other)));
     }
 
     #[test]
