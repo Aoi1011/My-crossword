@@ -9,9 +9,9 @@ pub struct Point {
 impl Point {
     // x.is_none() && y.is_none() -> the point at infinity
     pub fn new(x: Option<i32>, y: Option<i32>, a: i32, b: i32) -> Self {
-        if x.is_some() && y.is_some() {
-            if y.unwrap().pow(2) != x.unwrap().pow(3) + (a * x.unwrap()) + b {
-                panic!("({}, {}) is not on the curve", x.unwrap(), y.unwrap());
+        if let (Some(x_value), Some(y_value)) = (x, y) {
+            if y_value.pow(2) != x_value.pow(3) + (a * x_value) + b {
+                panic!("({}, {}) is not on the curve", x_value, y_value);
             }
         }
 
@@ -60,8 +60,8 @@ impl Point {
                     b: self.b,
                 }
             }
-            (Some(_), None) => return *self,
-            (None, Some(_)) => return other,
+            (Some(_), None) => *self,
+            (None, Some(_)) => other,
             _ => Self {
                 x: self.x,
                 y: self.y,
