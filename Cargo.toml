@@ -2,4 +2,5 @@
 members = [
 	"finite-fields",
 	"elliptic-curves",
+	"elliptic-curve-cryptography",
 ]
