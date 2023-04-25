@@ -13,6 +13,9 @@ dependencies = [
 [[package]]
 name = "elliptic-curves"
 version = "0.1.0"
+dependencies = [
+ "finite-fields",
+]
 
 [[package]]
 name = "finite-fields"

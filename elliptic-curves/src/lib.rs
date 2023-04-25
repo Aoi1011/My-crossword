@@ -1,17 +1,30 @@
+use finite_fields::FieldElement;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Point {
-    pub x: Option<i32>,
-    pub y: Option<i32>,
+    pub x: Option<FieldElement>,
+    pub y: Option<FieldElement>,
     pub a: i32,
     pub b: i32,
 }
 
 impl Point {
     // x.is_none() && y.is_none() -> the point at infinity
-    pub fn new(x: Option<i32>, y: Option<i32>, a: i32, b: i32) -> Self {
-        if let (Some(x_value), Some(y_value)) = (x, y) {
-            if y_value.pow(2) != x_value.pow(3) + (a * x_value) + b {
-                panic!("({}, {}) is not on the curve", x_value, y_value);
+    pub fn new(x: Option<FieldElement>, y: Option<FieldElement>, a: i32, b: i32) -> Self {
+        if let (Some(x_field), Some(y_field)) = (x, y) {
+            if y_field.pow(2)
+                != x_field
+                    .pow(3)
+                    .add(Some(x_field.mul(Some(FieldElement {
+                        num: a,
+                        prime: x_field.prime,
+                    }))))
+                    .add(Some(FieldElement {
+                        num: b,
+                        prime: x_field.prime,
+                    }))
+            {
+                panic!("({:?}, {:?}) is not on the curve", x_field, y_field);
             }
         }
 
