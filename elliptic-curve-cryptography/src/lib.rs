@@ -8,7 +8,7 @@ mod tests {
     use finite_fields::FieldElement;
 
     #[test]
-    fn test_exercise1() {
+    fn test_elliptic_curve_cryptographic_exercise1() {
         let prime = 223;
 
         let vec: Vec<(FieldElement, FieldElement)> = vec![
@@ -28,5 +28,13 @@ mod tests {
         }
 
         assert_eq!(vec![true, true, false, true, false], result);
+    }
+
+    #[test]
+    fn test_on_curve() {
+        let prime = 223;
+        let a = FieldElement::new(0, prime);
+        let b = FieldElement::new(7, prime);
+
     }
 }
