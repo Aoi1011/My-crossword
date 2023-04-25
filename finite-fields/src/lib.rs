@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub struct FieldElement {
-    num: i32,
-    prime: i32,
+    pub num: i32,
+    pub prime: i32,
 }
 
 impl FieldElement {
