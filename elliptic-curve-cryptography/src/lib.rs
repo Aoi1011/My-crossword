@@ -36,5 +36,6 @@ mod tests {
         let a = FieldElement::new(0, prime);
         let b = FieldElement::new(7, prime);
 
+
     }
 }

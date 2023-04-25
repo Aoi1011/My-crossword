@@ -52,7 +52,11 @@ impl Point {
                 b: self.b,
             },
             (Some(self_x), Some(other_x)) if self_x != other_x => {
-                let s = (other.y.unwrap() - self.y.unwrap()) / (other.x.unwrap() - self.x.unwrap());
+                let s = other
+                    .y
+                    .unwrap()
+                    .sub(Some(self.y.unwrap()))
+                    .true_dev(Some(other.x.unwrap().sub(Some(self.x.unwrap()))));
                 let x3 = s.pow(2) - self.x.unwrap() - other.x.unwrap();
                 let y3 = s * (self.x.unwrap() - x3) - self.y.unwrap();
                 Self {
