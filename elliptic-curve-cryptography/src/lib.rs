@@ -62,5 +62,18 @@ mod tests {
         point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
         assert_eq!(point_1.add(point_2), point_3);
+
+        field_1 = FieldElement::new(143, prime);
+        field_2 = FieldElement::new(98, prime);
+        field_3 = FieldElement::new(76, prime);
+        field_4 = FieldElement::new(66, prime);
+        field_5 = FieldElement::new(47, prime);
+        field_6 = FieldElement::new(71, prime);
+
+        point_1 = Point::new(Some(field_1), Some(field_2), a, b);
+        point_2 = Point::new(Some(field_3), Some(field_4), a, b);
+        point_3 = Point::new(Some(field_5), Some(field_6), a, b);
+
+        assert_eq!(point_1.add(point_2), point_3);
     }
 }
