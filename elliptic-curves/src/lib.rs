@@ -51,7 +51,7 @@ impl Point {
                     .y
                     .unwrap()
                     .sub(self.y)
-                    .true_dev(Some(other.x.unwrap().sub(self.x)));
+                    .true_dev(Some(other_x.sub(self.x)));
                 // x3 = s ^ 2 - x1 - x2
                 let x3 = s.pow(2).sub(self.x).sub(other.x);
                 // y3 = s(x1 - x3) - y1
@@ -64,13 +64,16 @@ impl Point {
                 }
             }
             (Some(self_x), Some(other_x)) if self_x == other_x && self.y == other.y => {
+                // s = (3x1 ^ 2 + a) / (2y1)
                 let s = FieldElement::new(3, self_x.prime)
                     .mul(Some(self_x.pow(2)))
                     .add(Some(self.a))
                     .true_dev(Some(FieldElement::new(2, self_x.prime).mul(self.y)));
+                // x3 = s ^ 2 - 2x1
                 let x3 = s
                     .pow(2)
                     .sub(Some(FieldElement::new(2, self_x.prime).mul(Some(self_x))));
+                // y3 = s(x1 - x3) - y1
                 let y3 = s.mul(Some(self_x.sub(Some(x3)))).sub(self.y);
 
                 Self {
