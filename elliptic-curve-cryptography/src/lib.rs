@@ -87,12 +87,9 @@ mod tests {
         let mut field_2 = FieldElement::new(105, prime);
         let mut field_3 = FieldElement::new(49, prime);
         let mut field_4 = FieldElement::new(71, prime);
-        // let mut field_5 = FieldElement::new(220, prime);
-        // let mut field_6 = FieldElement::new(181, prime);
 
         let mut point_1 = Point::new(Some(field_1), Some(field_2), a, b);
         let mut point_2 = Point::new(Some(field_3), Some(field_4), a, b);
-        // let mut point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
         assert_eq!(point_1 + point_1, point_2);
 
@@ -100,12 +97,9 @@ mod tests {
         field_2 = FieldElement::new(98, prime);
         field_3 = FieldElement::new(64, prime);
         field_4 = FieldElement::new(168, prime);
-        // field_5 = FieldElement::new(215, prime);
-        // field_6 = FieldElement::new(68, prime);
 
         point_1 = Point::new(Some(field_1), Some(field_2), a, b);
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
-        // point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
         assert_eq!(point_1 + point_1, point_2);
 
@@ -113,12 +107,9 @@ mod tests {
         field_2 = FieldElement::new(71, prime);
         field_3 = FieldElement::new(36, prime);
         field_4 = FieldElement::new(111, prime);
-        // field_5 = FieldElement::new(47, prime);
-        // field_6 = FieldElement::new(71, prime);
 
         point_1 = Point::new(Some(field_1), Some(field_2), a, b);
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
-        // point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
         assert_eq!(point_1 + point_1, point_2);
 
@@ -137,10 +128,51 @@ mod tests {
 
         point_2 = Point::new(None, None, a, b);
         assert_eq!(
-            point_1 + point_1 + point_1 + point_1 + point_1 + point_1 + point_1 + point_1 + 
-            point_1 + point_1 + point_1 + point_1 + point_1 + point_1 + point_1 + point_1 +
-            point_1 + point_1 + point_1 + point_1 + point_1,
+            point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1
+                + point_1,
             point_2
         );
+    }
+
+    #[test]
+    fn test_find_the_order() {
+        let prime = 223;
+        let a = FieldElement::new(0, prime);
+        let b = FieldElement::new(7, prime);
+
+        let field_1 = FieldElement::new(15, prime);
+        let field_2 = FieldElement::new(86, prime);
+
+        let point = Point::new(Some(field_1), Some(field_2), a, b);
+        let point_at_inf = Point::new(None, None, a, b);
+
+        let mut product = point;
+        let mut count = 1;
+
+        while product != point_at_inf {
+            product = product + point;
+            count += 1;
+        }
+
+        assert_eq!(count, 7);
     }
 }
