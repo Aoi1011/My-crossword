@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use finite_fields::FieldElement;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -32,14 +34,18 @@ impl Point {
     pub fn not_equal(&self, other: Option<Point>) -> bool {
         *self != other.unwrap()
     }
+}
 
-    pub fn add(&self, other: Point) -> Self {
-        if self.a != other.a || self.b != other.b {
-            panic!("Points {:?}, {:?} are not on the same curve", self, other);
+impl Add for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        if self.a != rhs.a || self.b != rhs.b {
+            panic!("Points {:?}, {:?} are not on the same curve", self, rhs);
         }
 
-        match (self.x, other.x) {
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y != other.y => Self {
+        match (self.x, rhs.x) {
+            (Some(self_x), Some(other_x)) if self_x == other_x && self.y != rhs.y => Self {
                 x: None,
                 y: None,
                 a: self.a,
@@ -47,13 +53,13 @@ impl Point {
             },
             (Some(self_x), Some(other_x)) if self_x != other_x => {
                 // s = (y2 - y1) / (x2 - x1)
-                let s = other
+                let s = rhs
                     .y
                     .unwrap()
                     .sub(self.y)
                     .true_dev(Some(other_x.sub(self.x)));
                 // x3 = s ^ 2 - x1 - x2
-                let x3 = s.pow(2).sub(self.x).sub(other.x);
+                let x3 = s.pow(2).sub(self.x).sub(rhs.x);
                 // y3 = s(x1 - x3) - y1
                 let y3 = s.mul(Some(self_x.sub(Some(x3)))).sub(self.y);
                 Self {
@@ -63,7 +69,7 @@ impl Point {
                     b: self.b,
                 }
             }
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y == other.y => {
+            (Some(self_x), Some(other_x)) if self_x == other_x && self.y == rhs.y => {
                 // s = (3x1 ^ 2 + a) / (2y1)
                 let s = FieldElement::new(3, self_x.prime)
                     .mul(Some(self_x.pow(2)))
@@ -83,8 +89,8 @@ impl Point {
                     b: self.b,
                 }
             }
-            (Some(_), None) => *self,
-            (None, Some(_)) => other,
+            (Some(_), None) => self,
+            (None, Some(_)) => rhs,
             _ => Self {
                 x: self.x,
                 y: self.y,
@@ -123,7 +129,7 @@ mod tests {
         let point2 = Point::new(Some(field_element1), Some(field_element2), a, b);
         let inf = Point::new(None, None, a, b);
 
-        assert_eq!(point1.add(point2), inf);
+        assert_eq!(point1 + point2, inf);
 
         // x1 != x2
         let prime = 223;
@@ -139,6 +145,6 @@ mod tests {
         let point2 = Point::new(Some(field_element3), Some(field_element4), a, b);
         let point3 = Point::new(Some(field_element5), Some(field_element6), a, b);
 
-        assert_eq!(point1.add(point2), point3);
+        assert_eq!(point1 + point2, point3);
     }
 }

@@ -48,7 +48,7 @@ mod tests {
         let mut point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         let mut point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_2), point_3);
+        assert_eq!(point_1 + point_2, point_3);
 
         field_1 = FieldElement::new(47, prime);
         field_2 = FieldElement::new(71, prime);
@@ -61,7 +61,7 @@ mod tests {
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_2), point_3);
+        assert_eq!(point_1 + point_2, point_3);
 
         field_1 = FieldElement::new(143, prime);
         field_2 = FieldElement::new(98, prime);
@@ -74,7 +74,7 @@ mod tests {
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_2), point_3);
+        assert_eq!(point_1 + point_2, point_3);
     }
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
         let mut point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         // let mut point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_1), point_2);
+        assert_eq!(point_1 + point_1, point_2);
 
         field_1 = FieldElement::new(143, prime);
         field_2 = FieldElement::new(98, prime);
@@ -107,7 +107,7 @@ mod tests {
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         // point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_1), point_2);
+        assert_eq!(point_1 + point_1, point_2);
 
         field_1 = FieldElement::new(47, prime);
         field_2 = FieldElement::new(71, prime);
@@ -120,11 +120,11 @@ mod tests {
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
         // point_3 = Point::new(Some(field_5), Some(field_6), a, b);
 
-        assert_eq!(point_1.add(point_1), point_2);
+        assert_eq!(point_1 + point_1, point_2);
 
         field_3 = FieldElement::new(194, prime);
         field_4 = FieldElement::new(51, prime);
         point_2 = Point::new(Some(field_3), Some(field_4), a, b);
-        assert_eq!(point_1.add(point_1).add(point_1).add(point_1), point_2);
+        assert_eq!(point_1 + point_1 + point_1 + point_1, point_2);
     }
 }
