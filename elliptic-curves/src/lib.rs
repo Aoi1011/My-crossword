@@ -34,6 +34,14 @@ impl Point {
     pub fn not_equal(&self, other: Option<Point>) -> bool {
         *self != other.unwrap()
     }
+
+    pub fn rmul(&self, coefficient: u32) -> Self {
+        let mut product = Self::new(None, None, self.a, self.b);
+        for _ in 0..coefficient {
+            product = product + *self;
+        }
+        product
+    }
 }
 
 impl Add for Point {
