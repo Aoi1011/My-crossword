@@ -36,11 +36,17 @@ impl Point {
     }
 
     pub fn rmul(&self, coefficient: u32) -> Self {
-        let mut product = Self::new(None, None, self.a, self.b);
-        for _ in 0..coefficient {
-            product = product + *self;
+        let mut coef = coefficient;
+        let mut current = *self;
+        let mut result = Self::new(None, None, self.a, self.b);
+        while coef != 0 {
+            if coef & 1 == 1 {
+                result = result + current;
+            }
+            current = current + current;
+            coef >>= 1;
         }
-        product
+        result
     }
 }
 

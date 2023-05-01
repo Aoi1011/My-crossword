@@ -176,7 +176,5 @@ mod tests {
         assert_eq!(count, 7);
 
         assert_eq!(point.rmul(7), point_at_inf);
-
     }
-
 }
