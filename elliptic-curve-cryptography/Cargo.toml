@@ -1,5 +1,5 @@
 [package]
-name = "elliptic-curves"
+name = "elliptic-curve-cryptography"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 finite-fields = { path = "../finite-fields" }
+elliptic-curves = { path = "../elliptic-curves" }
