@@ -1,46 +1,5 @@
-use finite_fields::FieldElement;
-
-const PRIME: i32 = 2_i32.pow(256) - 2_i32.pow(32) - 977;
-const A: i32 = 0;
-const B: i32 = 7;
-const N: u128  = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
-
-pub struct S256Field {
-    pub num: i32,
-    pub prime: i32,
-}
-
-impl S256Field {
-    pub fn new(num: i32) -> Self {
-        Self { num, prime: PRIME }
-    }
-
-    pub fn repr(&self) -> String {
-        format!("{:0>64x}", self.num)
-    }
-}
-
-pub struct S256Point {
-    pub x: Option<S256Field>,
-    pub y: Option<S256Field>,
-    pub a: S256Field,
-    pub b: S256Field,
-}
-
-impl S256Point {
-    pub fn new(x: Option<S256Field>, y: Option<S256Field>) -> Self {
-        let (a, b) = (S256Field::new(A), S256Field::new(B));
-        Self { x, y, a, b }
-    }
-}
-
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use elliptic_curves::Point;
     use finite_fields::FieldElement;
 
