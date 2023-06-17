@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, ops::{Add, AddAssign}};
 
 #[derive(Debug, Clone, Copy)]
 // Field element for secp256k1
@@ -685,10 +685,10 @@ impl Field {
 
         for i in (0..10).rev() {
             if self.n[i] > other.n[i] {
-                return Ordering::Greater
-            } 
+                return Ordering::Greater;
+            }
             if self.n[i] < other.n[i] {
-                return Ordering::Less
+                return Ordering::Less;
             }
         }
 
@@ -709,5 +709,40 @@ impl Default for Field {
             magnitude: 0,
             normalized: true,
         }
+    }
+}
+
+impl Add<Field> for Field {
+    type Output = Field;
+
+    fn add(self, rhs: Field) -> Self::Output {
+        let mut ret = self;
+        ret.add_assign(&rhs);
+        ret
+    }
+}
+
+impl<'a> AddAssign<&'a Field> for Field {
+    fn add_assign(&mut self, rhs: &'a Field) {
+        self.n[0] += rhs.n[0];
+        self.n[1] += rhs.n[1];
+        self.n[2] += rhs.n[2];
+        self.n[3] += rhs.n[3];
+        self.n[4] += rhs.n[4];
+        self.n[5] += rhs.n[5];
+        self.n[6] += rhs.n[6];
+        self.n[7] += rhs.n[7];
+        self.n[8] += rhs.n[8];
+        self.n[9] += rhs.n[9];
+
+        self.magnitude += rhs.magnitude;
+        self.normalized = false;
+        debug_assert!(self.verify());
+    }
+}
+
+impl AddAssign<Field> for Field {
+    fn add_assign(&mut self, rhs: Field) {
+        self.add_assign(&rhs);
     }
 }
