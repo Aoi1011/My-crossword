@@ -1789,3 +1789,78 @@ impl PartialOrd for Field {
         Some(self.cmp(other))
     }
 }
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+// Compact field element storage
+pub struct FieldStorage(pub [u32; 8]);
+
+impl Default for FieldStorage {
+    fn default() -> Self {
+        Self([0; 8])
+    }
+}
+
+impl FieldStorage {
+    pub const fn new(
+        d7: u32,
+        d6: u32,
+        d5: u32,
+        d4: u32,
+        d3: u32,
+        d2: u32,
+        d1: u32,
+        d0: u32,
+    ) -> Self {
+        Self([d0, d1, d2, d3, d4, d5, d6, d7])
+    }
+
+    pub fn cmov(&mut self, other: &FieldStorage, flag: bool) {
+        self.0[0] = if flag { other.0[0] } else { self.0[0] };
+        self.0[1] = if flag { other.0[1] } else { self.0[1] };
+        self.0[2] = if flag { other.0[2] } else { self.0[2] };
+        self.0[3] = if flag { other.0[3] } else { self.0[3] };
+        self.0[4] = if flag { other.0[4] } else { self.0[4] };
+        self.0[5] = if flag { other.0[5] } else { self.0[5] };
+        self.0[6] = if flag { other.0[6] } else { self.0[6] };
+        self.0[7] = if flag { other.0[7] } else { self.0[7] };
+    }
+}
+
+impl From<FieldStorage> for Field {
+    fn from(value: FieldStorage) -> Self {
+        let mut r = Field::default();
+
+        r.n[0] = value.0[0] & 0x3FFFFFF;
+        r.n[1] = value.0[0] >> 26 | ((value.0[1] << 6) & 0x3FFFFFF);
+        r.n[2] = value.0[1] >> 20 | ((value.0[2] << 12) & 0x3FFFFFF);
+        r.n[3] = value.0[2] >> 14 | ((value.0[3] << 18) & 0x3FFFFFF);
+        r.n[4] = value.0[3] >> 8 | ((value.0[4] << 24) & 0x3FFFFFF);
+        r.n[5] = (value.0[4] >> 2) | &0x3FFFFFF;
+        r.n[6] = value.0[4] >> 28 | ((value.0[5] << 4) & 0x3FFFFFF);
+        r.n[7] = value.0[5] >> 22 | ((value.0[6] << 10) & 0x3FFFFFF);
+        r.n[8] = value.0[6] >> 16 | ((value.0[7] << 16) & 0x3FFFFFF);
+        r.n[9] = value.0[7] >> 10;
+
+        r.magnitude = 1;
+        r.normalized = true;
+        r
+    }
+}
+
+impl Into<FieldStorage> for Field {
+    fn into(self) -> FieldStorage {
+        debug_assert!(self.normalized);
+        let mut r = FieldStorage::default();
+
+        r.0[0] = self.n[0] | self.n[1] << 26;
+        r.0[1] = self.n[1] >> 6 | self.n[2] << 20;
+        r.0[2] = self.n[2] >> 12 | self.n[3] << 14;
+        r.0[3] = self.n[3] >> 18 | self.n[4] << 8;
+        r.0[4] = self.n[4] >> 24 | self.n[5] << 2 | self.n[6] << 28;
+        r.0[5] = self.n[6] >> 4 | self.n[7] << 22;
+        r.0[6] = self.n[7] >> 10 | self.n[8] << 16;
+        r.0[7] = self.n[8] >> 16 | self.n[9] << 10;
+
+        r
+    }
+}
