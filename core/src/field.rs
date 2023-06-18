@@ -728,7 +728,7 @@ impl Field {
         debug_assert_bits!(a.n[6], 30);
         debug_assert_bits!(a.n[7], 30);
         debug_assert_bits!(a.n[8], 30);
-        debug_assert_bits!(a.n[9], 30);
+        debug_assert_bits!(a.n[9], 26);
         debug_assert_bits!(b.n[0], 30);
         debug_assert_bits!(b.n[1], 30);
         debug_assert_bits!(b.n[2], 30);
@@ -738,7 +738,7 @@ impl Field {
         debug_assert_bits!(b.n[6], 30);
         debug_assert_bits!(b.n[7], 30);
         debug_assert_bits!(b.n[8], 30);
-        debug_assert_bits!(b.n[9], 30);
+        debug_assert_bits!(b.n[9], 26);
 
         // [... a b c] is shorthand for ... + a << 52 + b << 26 + c<<0 mod n.
         // px is shorthand for sum(a[i] * b[x-i], i=0..x).
@@ -1124,6 +1124,27 @@ impl Field {
         self.n[2] = d as u32;
         debug_assert_bits!(self.n[2], 27);
         /* [r9 r8 r7 r6 r5 r4 r3 r2 r1 r0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
+    }
+
+    fn sqr_inner(&mut self, a: &Field) {
+        const M: u64 = 0x3ffffff;
+        const R0: u64 = 0x3d10;
+        const R1: u64 = 0x400;
+
+        let (mut c, mut d): (u64, u64);
+        let (v0, v1, v2, v3, v4, v5, v6, v7, v8): (u64, u64, u64, u64, u64, u64, u64, u64, u64);
+        let (t9, t0, t1, t2, t3, t4, t5, t6, v7): (u32, u32, u32, u32, u32, u32, u32, u32, u32);
+
+        debug_assert_bits!(a.n[0], 30);
+        debug_assert_bits!(a.n[1], 30);
+        debug_assert_bits!(a.n[2], 30);
+        debug_assert_bits!(a.n[3], 30);
+        debug_assert_bits!(a.n[4], 30);
+        debug_assert_bits!(a.n[5], 30);
+        debug_assert_bits!(a.n[6], 30);
+        debug_assert_bits!(a.n[7], 30);
+        debug_assert_bits!(a.n[8], 30);
+        debug_assert_bits!(a.n[9], 26);
     }
 }
 
