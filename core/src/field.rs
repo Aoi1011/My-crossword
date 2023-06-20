@@ -477,8 +477,8 @@ impl Field {
         z0 == 0 || z1 == 0x3ffffff
     }
 
-    // Set a field element equal to small integer, Resulting field
-    // element is normalized.
+    /// Set a field element equal to small integer, Resulting field
+    /// element is normalized.
     pub fn set_int(&mut self, a: u32) {
         self.n = [a, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         self.magnitude = 1;
@@ -1455,9 +1455,9 @@ impl Field {
         /* [r9 r8 r7 r6 r5 r4 r3 r2 r1 r0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
     }
 
-    // Sets a field element to be the product of two others. Requires
-    // the inputs' magnitude to be at most 8. The output magnitude
-    // is 1 (but not guranteed to be normalized).
+    /// Sets a field element to be the product of two others. Requires
+    /// the inputs' magnitude to be at most 8. The output magnitude
+    /// is 1 (but not guranteed to be normalized).
     pub fn mul_in_place(&mut self, a: &Field, b: &Field) {
         debug_assert!(a.magnitude <= 8);
         debug_assert!(b.magnitude <= 8);
@@ -1469,9 +1469,9 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Sets a field element to be the square of another. Requires the input's
-    // magnitude to be at most 8. The output magnitude is 1
-    // (but not guranteed to  be normalized)
+    /// Sets a field element to be the square of another. Requires the input's
+    /// magnitude to be at most 8. The output magnitude is 1
+    /// (but not guranteed to  be normalized)
     pub fn sqr_in_place(&mut self, a: &Field) {
         debug_assert!(a.magnitude <= 8);
         debug_assert!(a.verify());
@@ -1487,12 +1487,12 @@ impl Field {
         ret
     }
 
-    // If a has a square root, it is computed in r and 1 is
-    // returned. If a does not have a squre root, the root of its
-    // negation is computed and 0 is returned. The input's magnitude
-    // can be most 8. The output magnitude is 1 (but not
-    // guranteed to be normalized). The result in r will always be a
-    // square itself.
+    /// If a has a square root, it is computed in r and 1 is
+    /// returned. If a does not have a squre root, the root of its
+    /// negation is computed and 0 is returned. The input's magnitude
+    /// can be most 8. The output magnitude is 1 (but not
+    /// guranteed to be normalized). The result in r will always be a
+    /// square itself.
     pub fn sqrt(&self) -> (Field, bool) {
         let mut x2 = self.sqr();
         x2 *= self;
