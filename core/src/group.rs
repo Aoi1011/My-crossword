@@ -148,4 +148,37 @@ impl Affine {
         x3.normalize_weak();
         y2.eq_var(&x3)
     }
+
+    pub fn neg_in_place(&mut self, other: &Affine) {
+        *self = *other;
+        self.y.normalize_weak();
+        self.y = self.y.neg(1);
+    }
+
+    pub fn neg(&self) -> Affine {
+        let mut ret = Affine::default();
+        ret.neg_in_place(self);
+        ret
+    }
+
+    /// Set a group element equal to another which is given in
+    /// jacobian coordinate.
+    pub fn set_gej(&mut self, a: &Jacobian) {
+        self.infinity = a.infinity;
+        let mut a = *a;
+        a.z = a.z.inv();
+        let z2 = a.z.sqr();
+        let z3 = a.z * z2;
+        a.x *= z2;
+        a.y *= z3;
+        a.z.set_int(1);
+        self.x = a.x;
+        self.y = a.y;
+    }
+
+    pub fn from_gej(a: &Jacobian) -> Self {
+        let mut ge = Self::default();
+        ge.set_gej(a);
+        ge
+    }
 }
