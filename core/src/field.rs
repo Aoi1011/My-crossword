@@ -103,7 +103,7 @@ impl Field {
         r
     }
 
-    // Normalize a field element
+    /// Normalize a field element
     pub fn normalize(&mut self) {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
@@ -514,7 +514,7 @@ impl Field {
         self.n[0] & 1 != 0
     }
 
-    // Set a field element equal to zero, initializing all fields
+    /// Set a field element equal to zero, initializing all fields
     pub fn clear(&mut self) {
         self.magnitude = 0;
         self.normalized = true;
@@ -656,8 +656,8 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Compute the additive inverse of this element. Takes the maximum
-    // expected magnitude of this element as an argument
+    /// Compute the additive inverse of this element. Takes the maximum
+    /// expected magnitude of this element as an argument
     pub fn neg(&self, m: u32) -> Field {
         let mut ret = Field::default();
         ret.neg_in_place(self, m);
@@ -1455,9 +1455,9 @@ impl Field {
         /* [r9 r8 r7 r6 r5 r4 r3 r2 r1 r0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
     }
 
-    /// Sets a field element to be the product of two others. Requires
-    /// the inputs' magnitude to be at most 8. The output magnitude
-    /// is 1 (but not guranteed to be normalized).
+    // Sets a field element to be the product of two others. Requires
+    // the inputs' magnitude to be at most 8. The output magnitude
+    // is 1 (but not guranteed to be normalized).
     pub fn mul_in_place(&mut self, a: &Field, b: &Field) {
         debug_assert!(a.magnitude <= 8);
         debug_assert!(b.magnitude <= 8);
@@ -1653,8 +1653,8 @@ impl Field {
         self * &t1
     }
 
-    // Potentially faster version of secp256k1_fe_inv, without
-    // constant-time guarantee
+    /// Potentially faster version of secp256k1_fe_inv, without
+    /// constant-time guarantee
     pub fn inv_var(&self) -> Field {
         self.inv()
     }

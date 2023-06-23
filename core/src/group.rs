@@ -181,4 +181,42 @@ impl Affine {
         ge.set_gej(a);
         ge
     }
+
+    pub fn set_gej_var(&mut self, a: &Jacobian) {
+        let mut a = *a;
+        self.infinity = a.infinity;
+        if a.is_infinity() {
+            return;
+        }
+        a.z = a.z.inv_var();
+        let z2 = a.z.sqr();
+        let z3 = a.z * z2;
+        a.x *= &z2;
+        a.y *= &z3;
+        a.z.set_int(1);
+        self.x = a.x;
+        self.y = a.y;
+    }
+
+    pub fn set_gej_zinv(&mut self, a: &Jacobian, zi: &Field) {
+        let zi2 = zi.sqr();
+        let zi3 = zi2 * *zi;
+        self.x = a.x * zi2;
+        self.y = a.y * zi3;
+        self.infinity = a.infinity;
+    }
+
+    /// Clear a secp256k1_ge to prevent leaking sensitive information
+    pub fn clear(&mut self) {
+        self.infinity = false;
+        self.x.clear();
+        self.y.clear();
+    }
+}
+
+impl Jacobian {
+    /// Check whether a group element is the point at infinity
+    pub fn is_infinity(&self) -> bool {
+        self.infinity
+    }
 }
