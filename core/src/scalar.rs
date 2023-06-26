@@ -61,6 +61,11 @@ impl Scalar {
                 & ((1 << count) - 1)
         }
     }
+
+    #[must_use]
+    fn check_overflow(&self) -> Choice {
+
+    }
 }
 
 impl Default for Scalar {
