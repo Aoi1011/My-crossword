@@ -333,10 +333,83 @@ macro_rules! define_ops {
                 let mut th = (t >> 32) as u32;
                 let t1 = t as u32;
                 $c0 = $c0.wrapping_add(t1);
-                th = th.wrapping_add(if $c0 < t1 {1} else {0});
+                th = th.wrapping_add(if $c0 < t1 { 1 } else { 0 });
                 $c1 = $c1.wrapping_add(th);
                 debug_assert!($c1 >= th);
             };
+        }
+
+        #[allow(unused_macro)]
+        macro_rules! muladd2 {
+            ($a: expr, $b: expr) => {
+                let a = $a;
+                let b = $b;
+                let t = (a as u64) * (b as u64);
+                let th = (t >> 32) as u32;
+                let t1 = t as u32;
+                let mut th2 = th.wrapping_add(th);
+                $c2 = $c2.wrapping_add(if th2 < th { 1 } else { 0 });
+                debug_assert!(th2 >= th || $c2 != 0);
+                let tl2 = t1.wrapping_add(t1);
+                th2 = th2.wrapping_add(t1);
+                $c0 = $c0.wrapping_add(tl2);
+                th2 = th2.wrapping_add(if $c0 < tl2 { 1 } else { 0 });
+                $c2 = $c2.wrapping_add(if $c0 < tl2 && th2 == 0 { 1 } else { 0 });
+                debug_assert!($c0 >= tl2 || th2 != 0 || $c2 != 0);
+                $c1 = $c1.wrapping_add(th2);
+                $c2 = $c2.wrapping_add(if $c1 < th2 { 1 } else { 0 });
+                debug_assert!($c1 >= th2 || $c2 != 0);
+            };
+        }
+
+        #[allow(unused_macro)]
+        macro_rules! sumadd {
+            ($a: expr) => {
+                let a = $a;
+                $c0 = $c0.wrapping_add(a);
+                let over = if $c0 < a { 1 } else { 0 };
+                $c1 = $c1.wrapping_add(over);
+                $c2 = $c2.wrapping_add(if $c1 < over { 1 } else { 0 });
+            };
+        }
+
+        #[allow(unused_macro)]
+        macro_rules! sumadd_fase {
+            ($a: expr) => {
+                let a = $a;
+                $c0 = $c0.wrapping_add(a);
+                $c1 = $c1.wrapping_add(if $c0 < a { 1 } else { 0 });
+                debug_assert!($c1 != 0 || $c0 >= a);
+                debug_assert!($c2 == 0);
+            };
+        }
+
+        #[allow(unused_macro)]
+        macro_rules! extract {
+            () => {{
+                #[allow(unused_assignments)]
+                {
+                    let n = $c0;
+                    $c0 = $c1;
+                    $c1 = $c2;
+                    $c2 = 0;
+                    n
+                }
+            }};
+        }
+
+        #[allow(unused_macro)]
+        macro_rules! extract_fast {
+            () => {{
+                #[allow(unused_assignments)]
+                {
+                    let n = $c0;
+                    $c0 = $c1;
+                    $c1 = 0;
+                    debug_assert!($c2 == 0);
+                    n
+                }
+            }};
         }
     };
 }
