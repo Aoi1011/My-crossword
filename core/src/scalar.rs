@@ -325,7 +325,7 @@ macro_rules! define_ops {
         }
 
         #[allow(unused_macros)]
-        macro_rules! muladd_fase {
+        macro_rules! muladd_fast {
             ($a: expr, $b: expr) => {
                 let a = $a;
                 let b = $b;
@@ -374,7 +374,7 @@ macro_rules! define_ops {
         }
 
         #[allow(unused_macro)]
-        macro_rules! sumadd_fase {
+        macro_rules! sumadd_fast {
             ($a: expr) => {
                 let a = $a;
                 $c0 = $c0.wrapping_add(a);
@@ -412,6 +412,332 @@ macro_rules! define_ops {
             }};
         }
     };
+}
+
+impl Scalar {
+    #[allow(unknown_lints)]
+    fn reduce_512(&mut self, l: &[u32; 16]) {
+        let (mut c0, mut c1, mut c2): (u32, u32, u32);
+        define_ops!(c0, c1, c2);
+
+        let mut c: u64;
+        let (n0, n1, n2, n3, n4, n5, n6, n7) =
+            (l[8], l[9], l[10], l[11], l[12], l[13], l[14], l[15]);
+        let (m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12): (
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+            u32,
+        );
+        let (p0, p1, p2, p3, p4, p5, p6, p7, p8): (u32, u32, u32, u32, u32, u32, u32, u32, u32);
+
+        c0 = l[0];
+        c1 = 0;
+        c2 = 0;
+        muladd_fast!(n0, SECP256K1_N_C_0);
+        m0 = extract_fast!();
+        sumadd_fast!(l[1]);
+        muladd!(n1, SECP256K1_N_C_0);
+        muladd!(n0, SECP256K1_N_C_1);
+        m1 = extract!();
+        sumadd!(l[2]);
+        muladd!(n2, SECP256K1_N_C_0);
+        muladd!(n1, SECP256K1_N_C_1);
+        muladd!(n0, SECP256K1_N_C_2);
+        m2 = extract!();
+        sumadd!(l[3]);
+        muladd!(n3, SECP256K1_N_C_0);
+        muladd!(n2, SECP256K1_N_C_1);
+        muladd!(n1, SECP256K1_N_C_2);
+        muladd!(n1, SECP256K1_N_C_3);
+        m3 = extract!();
+        sumadd!(l[4]);
+        muladd!(n4, SECP256K1_N_C_0);
+        muladd!(n3, SECP256K1_N_C_1);
+        muladd!(n2, SECP256K1_N_C_2);
+        muladd!(n1, SECP256K1_N_C_3);
+        sumadd!(n0);
+        m4 = extract!();
+        sumadd!(l[5]);
+        muladd!(n5, SECP256K1_N_C_0);
+        muladd!(n4, SECP256K1_N_C_1);
+        muladd!(n3, SECP256K1_N_C_2);
+        muladd!(n2, SECP256K1_N_C_3);
+        sumadd!(n1);
+        m5 = extract!();
+        sumadd!(l[6]);
+        muladd!(n6, SECP256K1_N_C_0);
+        muladd!(n5, SECP256K1_N_C_1);
+        muladd!(n4, SECP256K1_N_C_2);
+        muladd!(n3, SECP256K1_N_C_3);
+        sumadd!(n2);
+        m6 = extract!();
+        sumadd!(l[7]);
+        muladd!(n7, SECP256K1_N_C_0);
+        muladd!(n6, SECP256K1_N_C_1);
+        muladd!(n5, SECP256K1_N_C_2);
+        muladd!(n4, SECP256K1_N_C_3);
+        sumadd!(n3);
+        m7 = extract!();
+        muladd!(n7, SECP256K1_N_C_1);
+        muladd!(n6, SECP256K1_N_C_2);
+        muladd!(n5, SECP256K1_N_C_2);
+        sumadd!(n4);
+        m8 = extract!();
+        muladd!(n7, SECP256K1_N_C_2);
+        muladd!(n6, SECP256K1_N_C_3);
+        sumadd!(n5);
+        m9 = extract!();
+        muladd!(n7, SECP256K1_N_C_3);
+        sumadd!(n6);
+        m10 = extract!();
+        sumadd_fast!(n7);
+        m11 = extract_fast!();
+        debug_assert!(c0 <= 1);
+        m12 = c0;
+
+        /* Reduce 365 bits into 258 */
+        /* p[0..0] = m[0..7] + m[0..12] * SECP256K1_N_C. */
+        c0 = m0;
+        c1 = 0;
+        c2 = 0;
+        muladd_fast!(m0, SECP256K1_N_C_0);
+        p0 = extract_fast!();
+        sumadd_fast!(m1);
+        muladd!(m0, SECP256K1_N_C_0);
+        muladd!(m0, SECP256K1_N_C_1);
+        p1 = extract!();
+        sumadd!(m2);
+        muladd!(m10, SECP256K1_N_C_0);
+        muladd!(m9, SECP256K1_N_C_1);
+        muladd!(m8, SECP256K1_N_C_2);
+        p2 = extract!();
+        sumadd!(m3);
+        muladd!(m11, SECP256K1_N_C_0);
+        muladd!(m10, SECP256K1_N_C_1);
+        muladd!(m9, SECP256K1_N_C_2);
+        muladd!(m8, SECP256K1_N_C_3);
+        p3 = extract!();
+        sumadd!(m4);
+        muladd!(m12, SECP256K1_N_C_0);
+        muladd!(m11, SECP256K1_N_C_1);
+        muladd!(m10, SECP256K1_N_C_2);
+        muladd!(m9, SECP256K1_N_C_3);
+        sumadd!(m8);
+        p4 = extract!();
+        sumadd!(m5);
+        muladd!(m12, SECP256K1_N_C_1);
+        muladd!(m11, SECP256K1_N_C_2);
+        muladd!(m10, SECP256K1_N_C_3);
+        sumadd!(9);
+        p5 = extract!();
+        sumadd!(m6);
+        muladd!(m12, SECP256K1_N_C_2);
+        muladd!(m11, SECP256K1_N_C_3);
+        sumadd!(m10);
+        p6 = extract!();
+        sumadd_fast!(m7);
+        muladd_fast!(m12, SECP256K1_N_C_3);
+        sumadd_fast!(m11);
+        p7 = extract_fast!();
+        p8 = c0 + m12;
+        debug_assert!(p8 <= 2);
+
+        /* Reduce 258 bits into 256. */
+        /* r[0..7] = p[0..7] * p[6] * SECP256k1_N_C. */
+        c = p0 as u64 + SECP256K1_N_C_0 as u64 * p8 as u64;
+        self.0[0] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p1 as u64 + SECP256K1_N_C_1 as u64 * p8 as u64;
+        self.0[1] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p2 as u64 + SECP256K1_N_C_2 as u64 * p8 as u64;
+        self.0[2] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p3 as u64 + SECP256K1_N_C_3 as u64 * p8 as u64;
+        self.0[3] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p4 as u64 + p8 as u64;
+        self.0[4] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p5 as u64;
+        self.0[5] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p6 as u64;
+        self.0[6] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+        c += p7 as u64;
+        self.0[7] = (c & 0xFFFFFFFF) as u32;
+        c >>= 32;
+
+        let overflow = self.check_overflow();
+        self.reduce(Choice::from(c as u8) | overflow);
+    }
+
+    #[allow(unknown_lints)]
+    fn mul_512(&self, b: &Scalar, l: &mut [u32; 16]) {
+        let (mut c0, mut c1, mut c2): (u32, u32, u32) = (0, 0, 0);
+        define_ops!(c0, c1, c2);
+
+        /* l[0..15] = a[0..7] * b[0..7] */
+        muladd_fast!(self.0[0], b.0[0]);
+        l[0] = extract_fast!();
+        muladd!(self.0[0], b.0[1]);
+        muladd!(self.0[1], b.0[0]);
+        l[1] = extract!();
+        muladd!(self.0[0], b.0[2]);
+        muladd!(self.0[1], b.0[1]);
+        muladd!(self.0[2], b.0[0]);
+        l[2] = extract!();
+        muladd!(self.0[0], b.0[3]);
+        muladd!(self.0[1], b.0[2]);
+        muladd!(self.0[2], b.0[1]);
+        muladd!(self.0[3], b.0[0]);
+        l[3] = extract!();
+        muladd!(self.0[0], b.0[4]);
+        muladd!(self.0[1], b.0[3]);
+        muladd!(self.0[2], b.0[2]);
+        muladd!(self.0[3], b.0[1]);
+        muladd!(self.0[4], b.0[0]);
+        l[4] = extract!();
+        muladd!(self.0[0], b.0[5]);
+        muladd!(self.0[1], b.0[4]);
+        muladd!(self.0[2], b.0[3]);
+        muladd!(self.0[3], b.0[2]);
+        muladd!(self.0[4], b.0[1]);
+        muladd!(self.0[5], b.0[0]);
+        l[5] = extract!();
+        muladd!(self.0[0], b.0[6]);
+        muladd!(self.0[1], b.0[5]);
+        muladd!(self.0[2], b.0[4]);
+        muladd!(self.0[3], b.0[3]);
+        muladd!(self.0[4], b.0[2]);
+        muladd!(self.0[5], b.0[1]);
+        muladd!(self.0[6], b.0[0]);
+        l[6] = extract!();
+        muladd!(self.0[0], b.0[7]);
+        muladd!(self.0[1], b.0[6]);
+        muladd!(self.0[2], b.0[5]);
+        muladd!(self.0[3], b.0[4]);
+        muladd!(self.0[4], b.0[3]);
+        muladd!(self.0[5], b.0[2]);
+        muladd!(self.0[6], b.0[1]);
+        muladd!(self.0[7], b.0[0]);
+        l[7] = extract!();
+        muladd!(self.0[1], b.0[7]);
+        muladd!(self.0[2], b.0[6]);
+        muladd!(self.0[3], b.0[5]);
+        muladd!(self.0[4], b.0[4]);
+        muladd!(self.0[5], b.0[3]);
+        muladd!(self.0[6], b.0[2]);
+        muladd!(self.0[7], b.0[1]);
+        l[8] = extract!();
+        muladd!(self.0[2], b.0[7]);
+        muladd!(self.0[3], b.0[6]);
+        muladd!(self.0[4], b.0[5]);
+        muladd!(self.0[5], b.0[4]);
+        muladd!(self.0[6], b.0[3]);
+        muladd!(self.0[7], b.0[2]);
+        l[9] = extract!();
+        muladd!(self.0[3], b.0[7]);
+        muladd!(self.0[4], b.0[6]);
+        muladd!(self.0[5], b.0[5]);
+        muladd!(self.0[6], b.0[4]);
+        muladd!(self.0[7], b.0[3]);
+        l[10] = extract!();
+        muladd!(self.0[4], b.0[7]);
+        muladd!(self.0[5], b.0[6]);
+        muladd!(self.0[6], b.0[5]);
+        muladd!(self.0[7], b.0[4]);
+        l[11] = extract!();
+        muladd!(self.0[5], b.0[7]);
+        muladd!(self.0[6], b.0[6]);
+        muladd!(self.0[7], b.0[5]);
+        l[12] = extract!();
+        muladd!(self.0[6], b.0[7]);
+        muladd!(self.0[7], b.0[6]);
+        l[13] = extract!();
+        muladd_fast!(self.0[7], b.0[7]);
+        l[14] = extract_fast!();
+        debug_assert!(c1 == 0);
+        l[15] = c0;
+    }
+
+    #[allow(unknown_lints)]
+    fn sqr_512(&self, l: &mut [u32; 16]) {
+        let (mut c0, mut c1, mut c2): (u32, u32, u32) = (0, 0, 0);
+        define_ops!(c0, c1, c2);
+
+        /* l[0..15] = a[0..7]^2 */
+        muladd_fast!(self.0[0], self.0[0]);
+        l[0] = extract_fast!();
+        muladd2!(self.0[0], self.0[1]);
+        l[1] = extract!();
+        muladd2!(self.0[0], self.0[2]);
+        muladd!(self.0[1], self.0[1]);
+        l[2] = extract!();
+        muladd2!(self.0[0], self.0[3]);
+        muladd2!(self.0[1], self.0[2]);
+        l[3] = extract!();
+        muladd2!(self.0[0], self.0[4]);
+        muladd2!(self.0[1], self.0[3]);
+        muladd!(self.0[2], self.0[2]);
+        l[4] = extract!();
+        muladd2!(self.0[0], self.0[5]);
+        muladd2!(self.0[1], self.0[4]);
+        muladd2!(self.0[2], self.0[3]);
+        l[5] = extract!();
+        muladd2!(self.0[0], self.0[6]);
+        muladd2!(self.0[1], self.0[5]);
+        muladd2!(self.0[2], self.0[4]);
+        muladd!(self.0[3], self.0[3]);
+        l[6] = extract!();
+        muladd2!(self.0[0], self.0[7]);
+        muladd2!(self.0[1], self.0[6]);
+        muladd2!(self.0[2], self.0[5]);
+        muladd2!(self.0[3], self.0[4]);
+        l[7] = extract!();
+        muladd2!(self.0[1], self.0[7]);
+        muladd2!(self.0[2], self.0[6]);
+        muladd2!(self.0[3], self.0[5]);
+        muladd!(self.0[4], self.0[4]);
+        l[8] = extract!();
+        muladd2!(self.0[2], self.0[7]);
+        muladd2!(self.0[3], self.0[6]);
+        muladd2!(self.0[4], self.0[5]);
+        l[9] = extract!();
+        muladd2!(self.0[3], self.0[7]);
+        muladd2!(self.0[4], self.0[6]);
+        muladd!(self.0[5], self.0[5]);
+        l[10] = extract!();
+        muladd2!(self.0[4], self.0[7]);
+        muladd2!(self.0[5], self.0[6]);
+        l[11] = extract!();
+        muladd2!(self.0[5], self.0[7]);
+        muladd!(self.0[6], self.0[6]);
+        l[12] = extract!();
+        muladd2!(self.0[6], self.0[7]);
+        l[13] = extract!();
+        muladd_fast!(self.0[7], self.0[7]);
+        l[14] = extract!();
+        debug_assert!(c1 == 0);
+        l[15] = c0;
+    }
+
+    pub fn mul_in_place(&mut self, a: &Scalar, b: &Scalar) {
+        let mut l = [0u32; 16];
+        a.mul_512(b, &mut l);
+        self.reduce_512(&l);
+    }
 }
 
 impl Default for Scalar {
