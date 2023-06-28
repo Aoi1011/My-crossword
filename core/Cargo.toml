@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 subtle = "2.5.0"
 crunchy = "0.2.2"
+
+[feature]
+default = ["std"]
+std = ["subtle/std"]
