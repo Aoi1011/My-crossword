@@ -5,6 +5,16 @@ version = 3
 [[package]]
 name = "core"
 version = "0.1.0"
+dependencies = [
+ "crunchy",
+ "subtle",
+]
+
+[[package]]
+name = "crunchy"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "elliptic-curve-cryptography"
@@ -24,3 +34,9 @@ dependencies = [
 [[package]]
 name = "finite-fields"
 version = "0.1.0"
+
+[[package]]
+name = "subtle"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
