@@ -2,7 +2,7 @@ use std::alloc::{alloc, Layout};
 
 use crate::{
     field::Field,
-    group::{set_table_gej_var, Affine, AffineStorage, Jacobian, AFFINE_G},
+    group::{globalz_set_table_gej, set_table_gej_var, Affine, AffineStorage, Jacobian, AFFINE_G},
     scalar::Scalar,
 };
 
@@ -245,4 +245,136 @@ impl ECMultGenContext {
     }
 }
 
-pub fn odd_multiple_table(prej: &mut [Jacobian], zr: &mut [Field], a: &Jacobian) {}
+pub fn odd_multiple_table(prej: &mut [Jacobian], zr: &mut [Field], a: &Jacobian) {
+    debug_assert!(prej.len() == zr.len());
+    debug_assert!(!prej.is_empty());
+    debug_assert!(!a.is_infinity());
+
+    let d = a.double_var(None);
+    let d_ge = Affine {
+        x: d.x,
+        y: d.y,
+        infinity: false,
+    };
+
+    let mut a_ge = Affine::default();
+    a_ge.set_gej_zinv(a, &d.z);
+    prej[0].x = a_ge.x;
+    prej[0].y = a_ge.y;
+    prej[0].z = a.z;
+    prej[0].infinity = false;
+
+    zr[0] = d.z;
+    for i in 1..prej.len() {
+        prej[i] = prej[i - 1].add_ge_var(&d_ge, Some(&mut zr[i]));
+    }
+
+    let l = prej.last().unwrap().z * d.z;
+    prej.last_mut().unwrap().z = l;
+}
+
+fn odd_multiples_table_globalz_windowa(
+    pre: &mut [Affine; ECMULT_TABLE_SIZE_A],
+    globalz: &mut Field,
+    a: &Jacobian,
+) {
+    let mut prej: [Jacobian; ECMULT_TABLE_SIZE_A] = Default::default();
+    let mut zr: [Field; ECMULT_TABLE_SIZE_A] = Default::default();
+
+    odd_multiple_table(&mut prej, &mut zr, a);
+    globalz_set_table_gej(pre, globalz, &prej, &zr);
+}
+
+fn table_get_ge(r: &mut Affine, pre: &[Affine], n: i32, w: usize) {
+    debug_assert!(n & 1 == 1);
+    debug_assert!(n >= -((1 << (w - 1)) - 1));
+    debug_assert!(n <= ((1 << (w - 1)) - 1));
+    if n > 0 {
+        *r = pre[((n - 1) / 2) as usize];
+    } else {
+        *r = pre[((-n - 1) / 2) as usize].neg();
+    }
+}
+
+fn table_get_ge_const(r: &mut Affine, pre: &[Affine], n: i32, w: usize) {
+    let abs_n = n * (if n > 0 { 1 } else { 0 } * 2 - 1);
+    let idx_n = abs_n / 2;
+    debug_assert!(n & 1 == 1);
+    debug_assert!(n >= -((1 << (w - 1)) - 1));
+    debug_assert!(n <= ((1 << (w - 1)) - 1));
+    for m in 0..pre.len() {
+        let flag = m == idx_n as usize;
+        r.x.cmov(&pre[m].x, flag);
+        r.y.cmov(&pre[m].y, flag);
+    }
+    r.infinity = false;
+    let neg_y = r.y.neg(1);
+    r.y.cmov(&neg_y, n != abs_n);
+}
+
+fn table_get_ge_storage(r: &mut Affine, pre: &[AffineStorage], n: i32, w: usize) {
+    debug_assert!(n & 1 == 1);
+    debug_assert!(n >= -((1 << (w - 1)) - 1));
+    debug_assert!(n <= ((1 << (w - 1)) - 1));
+    if n > 0 {
+        *r = pre[((n - 1) / 2) as usize].into();
+    } else {
+        *r = pre[((-n - 1) / 2) as usize].into();
+        *r = r.neg();
+    }
+}
+
+pub fn ecmult_wnaf(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
+    let mut s = *a;
+    let mut last_set_bit: i32 = -1;
+    let mut bit = 0;
+    let mut sign = 1;
+    let mut carry = 0;
+
+    debug_assert!(wnaf.len() <= 256);
+    debug_assert!(w >= 2 && w <= 31);
+
+    for i in 0..wnaf.len() {
+        wnaf[i] = 0;
+    }
+
+    if s.bits(256, 1) > 0 {
+        s = -s;
+        sign = -1;
+    }
+
+    while bit < wnaf.len() {
+        let mut now;
+        let mut word: i32;
+        if s.bits(bit, 1) == carry as u32 {
+            bit += 1;
+            continue;
+        }
+
+        now = w;
+        if now > wnaf.len() - bit {
+            now = wnaf.len() - bit;
+        }
+
+        word = (s.bits_var(bit, now) as i32) + carry;
+
+        carry = (word >> (w - 1)) & 1;
+        word -= carry << w;
+
+        wnaf[bit] = sign * word;
+        last_set_bit = bit as i32;
+
+        bit += now;
+    }
+    debug_assert!(carry == 0);
+    debug_assert!({
+        let mut t = true;
+        while bit < 256 {
+            t = t && (s.bits(bit, 1) == 0);
+            bit += 1;
+        }
+        t
+    });
+
+    last_set_bit + 1
+}
