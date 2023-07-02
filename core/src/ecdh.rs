@@ -1,0 +1,38 @@
+use digest::{generic_array::GenericArray, Digest, FixedOutputReset};
+
+use crate::{
+    ecmult::ECMultContext,
+    group::{Affine, Jacobian},
+    scalar::Scalar,
+};
+
+impl ECMultContext {
+    pub fn ecdh_raw<D: Digest + Default + FixedOutputReset>(
+        &self,
+        point: &Affine,
+        scalar: &Scalar,
+    ) -> Option<GenericArray<u8, D::OutputSize>> {
+        let mut digest: D = Default::default();
+
+        let mut pt = *point;
+        let s = *scalar;
+
+        if s.is_zero() {
+            return None;
+        }
+
+        let mut res = Jacobian::default();
+        self.ecmult_const(&mut res, &pt, &s);
+        pt.set_gej(&res);
+
+        pt.x.normalize();
+        pt.y.normalize();
+
+        let x = pt.x.b32();
+        let y = 0x02 | (if pt.y.is_odd() { 1 } else { 0 });
+
+        Digest::update(&mut digest, &[y]);
+        Digest::update(&mut digest, &x);
+        Some(digest.finalize_reset())
+    }
+}

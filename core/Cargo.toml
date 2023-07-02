@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 subtle = "2.5.0"
 crunchy = "0.2.2"
+digest = "0.10.7"
 
 [feature]
 default = ["std"]
