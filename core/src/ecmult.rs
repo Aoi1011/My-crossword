@@ -1,5 +1,7 @@
 use std::alloc::{alloc, Layout};
 
+use subtle::Choice;
+
 use crate::{
     field::Field,
     group::{globalz_set_table_gej, set_table_gej_var, Affine, AffineStorage, Jacobian, AFFINE_G},
@@ -377,4 +379,127 @@ pub fn ecmult_wnaf(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
     });
 
     last_set_bit + 1
+}
+
+pub fn ecmult_wnaf_const(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
+    let mut s = *a;
+    let word = 0;
+
+    /*
+     * Note that we cannot handle even numbers by negating them to be
+     * odd, as is done in other implementations, since if or scalars
+     * were specified to have width < 256 for performance reasons,
+     * their negations would have width 256 and we'd lose any
+     * performance benefit. Instead, we use a technique from Section
+     * 4.2 of the Okeya/Tagaki paper, which is to add either 1 (for
+     * even) or 2 (for odd) to the number we are encoding, returning a
+     * skew value indicating this, and having the caller compensate
+     * after doing the multiplication.
+     * */
+
+    /*
+     * Negative numbers will be negated to keep their bit
+     * representation below the maximum width
+     * */
+    let flip = s.is_high();
+    /*
+     * We add 1 to even numbers, 2 to odd ones, noting that negation
+     * filips parity
+     * */
+    let bit = flip ^ !s.is_even();
+    /*
+     * We add 1 to even numbers, 2 to odd ones, noting that negation
+     * flips parity
+     * */
+    let neg_s = -s;
+    let not_neg_one = !neg_s.is_one();
+    s.cadd_bit(if bit { 1 } else { 0 }, not_neg_one);
+    /*
+     * If we negative one, flip == 1, s.d[0] == 0, bit == 1, so
+     * caller expects that we added two to it and flipped it. In fact
+     * for -1 these operations are identical. We only flipped, but
+     * since skewing is required (in the sense that the skew must be
+     * or 2, never zero) and flipping is not, we need to change our
+     * flags to claim that we only skewed.
+     * */
+    let mut global_sign = if flip { -1 } else { 1 };
+    s.cond_neg_assign(Choice::from(flip as u8));
+    global_sign *= if not_neg_one { 1 } else { 0 } * 2 - 1;
+    let skew = 1 << (if bit { 1 } else { 0 });
+
+    let mut u_last: i32 = s.shr_int(w) as i32;
+    let mut u: i32 = 0;
+    while word * w < WNAF_BITS {
+        u = s.shr_int(w) as i32;
+        let even = (u & 1) == 0;
+        let sign = 2 * (if u_last > 0 { 1 } else { 0 }) - 1;
+        u += sign * if even { 1 } else { 0 };
+        u_last -= sign * if even { 1 } else { 0 } * (1 << w);
+    }
+    wnaf[word] = u * global_sign as i32;
+
+    debug_assert!(s.is_zero());
+    let wnaf_size = (WNAF_BITS + w - 1) / w;
+    debug_assert!(word == wnaf_size);
+
+    skew
+}
+
+impl ECMultContext {
+    pub fn ecmult(&self, r: &mut Jacobian, a: &Jacobian, na: &Scalar, ng: &Scalar) {
+        let mut tmpa = Affine::default();
+        let mut pre_a: [Affine; ECMULT_TABLE_SIZE_A] = Default::default();
+        let mut z = Field::default();
+        let mut wnaf_na = [0i32; 256];
+        let mut wnaf_ng = [0i32; 256];
+        let bits_na = ecmult_wnaf(&mut wnaf_na, na, WINDOW_A);
+        let mut bits = bits_na;
+        odd_multiples_table_globalz_windowa(&mut pre_a, &mut z, a);
+
+        let bits_ng = ecmult_wnaf(&mut wnaf_ng, &ng, WINDOW_G);
+        if bits_ng > bits {
+            bits = bits_ng;
+        }
+
+        r.set_infinity();
+        for i in (0..bits).rev() {
+            let mut n;
+            *r = r.double_var(None);
+
+            n = wnaf_na[i as usize];
+            if i < bits_na && n != 0 {
+                table_get_ge(&mut tmpa, &pre_a, n, WINDOW_A);
+                *r = r.add_ge_var(&tmpa, None);
+            }
+            n = wnaf_ng[i as usize];
+            if i < bits_ng && n != 0 {
+                table_get_ge_storage(&mut tmpa, &self.pre_g, n, WINDOW_G);
+                *r = r.add_zinv_var(&tmpa, &z);
+            }
+        }
+
+        if !r.is_infinity() {
+            r.z *= &z;
+        }
+    }
+
+    pub fn ecmult_const(&self, r: &mut Jacobian, a: &Affine, scalar: &Scalar) {
+        const WNAF_SIZE: usize = (WNAF_BITS + (WINDOW_A - 1) - 1) / (WINDOW_A - 1);
+
+        let mut tmpa = Affine::default();
+        let mut pre_a: [Affine; ECMULT_TABLE_SIZE_A] = Default::default();
+        let mut z = Field::default();
+
+        let mut wnaf_1 = [0i32; 1 + WNAF_SIZE];
+
+        let sc = *scalar;
+        let skew_1 = ecmult_wnaf_const(&mut wnaf_1, &sc, WINDOW_A - 1);
+
+        /*
+        * Calculate odd multiple of a. All multiple are brought to
+        * the same Z 'denominator', which is stored in Z. Due to 
+        * secpt256k1 is
+        *
+        * */
+    }
 }
