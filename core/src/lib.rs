@@ -1,3 +1,4 @@
+mod der;
 mod ecdh;
 mod ecdsa;
 mod ecmult;
