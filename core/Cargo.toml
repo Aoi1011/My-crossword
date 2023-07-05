@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-subtle = "2.5.0"
+subtle = { version = "2.5.0", default-features = false }
 crunchy = "0.2.2"
 digest = "0.10.7"
 
-[feature]
+[features]
 default = ["std"]
 std = ["subtle/std"]
