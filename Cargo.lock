@@ -3,21 +3,18 @@
 version = 3
 
 [[package]]
+name = "arrayref"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b4930d2cb77ce62f89ee5d5289b4ac049559b1c45539271f5ed4fdc7db34545"
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "core"
-version = "0.1.0"
-dependencies = [
- "crunchy",
- "digest",
- "subtle",
 ]
 
 [[package]]
@@ -47,25 +44,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "elliptic-curve-cryptography"
-version = "0.1.0"
-dependencies = [
- "elliptic-curves",
- "finite-fields",
-]
-
-[[package]]
-name = "elliptic-curves"
-version = "0.1.0"
-dependencies = [
- "finite-fields",
-]
-
-[[package]]
-name = "finite-fields"
-version = "0.1.0"
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -74,6 +52,40 @@ dependencies = [
  "typenum",
  "version_check",
 ]
+
+[[package]]
+name = "libsecp256k1"
+version = "0.1.0"
+dependencies = [
+ "arrayref",
+ "digest",
+ "libsecp256k1-core",
+ "rand",
+]
+
+[[package]]
+name = "libsecp256k1-core"
+version = "0.1.0"
+dependencies = [
+ "crunchy",
+ "digest",
+ "subtle",
+]
+
+[[package]]
+name = "rand"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
 name = "subtle"
