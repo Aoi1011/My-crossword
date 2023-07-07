@@ -147,6 +147,8 @@ dependencies = [
  "hmac-drbg",
  "lazy_static",
  "libsecp256k1-core",
+ "libsecp256k1-gen-ecmult",
+ "libsecp256k1-gen-genmult",
  "rand",
  "serde",
  "sha2",
@@ -160,6 +162,20 @@ dependencies = [
  "crunchy",
  "digest 0.10.7",
  "subtle",
+]
+
+[[package]]
+name = "libsecp256k1-gen-ecmult"
+version = "0.1.0"
+dependencies = [
+ "libsecp256k1-core",
+]
+
+[[package]]
+name = "libsecp256k1-gen-genmult"
+version = "0.1.0"
+dependencies = [
+ "libsecp256k1-core",
 ]
 
 [[package]]
