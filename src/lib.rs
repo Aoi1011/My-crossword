@@ -1,5 +1,5 @@
 use digest::{generic_array::GenericArray, Digest};
-use libsecp256k1_core::curve::{ECMultGenContext, Scalar};
+use libsecp256k1_core::curve::{ECMultGenContext, Jacobian, Scalar};
 pub use libsecp256k1_core::*;
 
 use crate::curve::{Affine, ECMultContext};
@@ -42,3 +42,72 @@ pub struct Message(pub Scalar);
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Shared secret using ECDH
 pub struct SharedSecret<D: Digest>(GenericArray<u8, D::OutputSize>);
+
+impl<D> Copy for SharedSecret<D>
+where
+    D: Copy + Digest,
+    GenericArray<u8, D::OutputSize>: Copy,
+{
+}
+
+/// Format for public key parsing.
+pub enum PublicKeyFormat {
+    /// Compressed public key, 33 bytes.
+    Compressed,
+    /// Full length public key, 65 bytes.
+    Full,
+    /// Raw public key, 64 bytes.
+    Raw,
+}
+
+impl PublicKey {
+    pub fn from_secret_key_with_context(seckey: &SecretKey, context: &ECMultGenContext) -> Self {
+        let mut pj = Jacobian::default();
+        context.ecmult_gen(&mut pj, &seckey.0);
+        let mut p = Affine::default();
+        p.set_gej(&pj);
+        Self(p)
+    }
+
+    #[cfg(feature = "static-context", feature = "lazy-static-context")]
+    pub fn from_secret_key(seckey: &SecretKey) -> Self {
+        Self::from_secret_key_with_context(seckey, &ECMULT_GEN_CONTEXT)
+    }
+
+    pub fn parse_slice(p: &[u8], format: Option<PublicKeyFormat>) -> Result<PublicKey, Error> {
+        let format = match (p.len(), format) {
+            (util::FULL_PUBLIC_KEY_SIZE, None)
+            | (util::FULL_PUBLIC_KEY_SIZE, Some(PublicKeyFormat::Full)) => PublicKeyFormat::Full,
+            (util::COMPRESSED_PUBLIC_KEY_SIZE, None)
+            | (util::COMPRESSED_PUBLIC_KEY_SIZE, Some(PublicKeyFormat::Compressed)) => {
+                PublicKeyFormat::Compressed
+            }
+            (util::RAW_PUBLIC_KEY_SIZE, None)
+            | (util::RAW_PUBLIC_KEY_SIZE, Some(PublicKeyFormat::Raw)) => PublicKeyFormat::Raw,
+            _ => return Err(Error::InvalidInputLength),
+        };
+
+        match format {
+            PublicKeyFormat::Full => {
+                let mut a = [0; util::FULL_PUBLIC_KEY_SIZE];
+                a.copy_from_slice(p);
+                Self::parse(&a)
+            }
+            PublicKeyFormat::Raw => {
+                use util::TAG_PUBKEY_FULL;
+
+                let mut a = [0; util::FULL_PUBLIC_KEY_SIZE];
+                a[0] = TAG_PUBKEY_FULL;
+                a[1..].copy_from_slice(p);
+                Self::parse(&a)
+            }
+            PublicKeyFormat::Compressed => {
+                let mut a = [0; util::COMPRESSED_PUBLIC_KEY_SIZE];
+                a.copy_from_slice(p);
+                Self::parse_compressed(&a)
+            }
+        }
+    }
+
+    pub fn parse(p: &[u8; util::FULL_PUBLIC_KEY_SIZE]) -> Result<PublicKey, Error> {}
+}
