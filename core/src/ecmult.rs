@@ -181,6 +181,10 @@ impl ECMultGenContext {
     }
 
     pub fn new_boxed() -> Box<Self> {
+        // This unsafe block allocates a new, unitialized `ECMultGenContext` and
+        // then fills in the value. This is to avoid allocating it on stack
+        // because the struct is big. All values in `ECMultGenContext` are
+        // manually initialized after allocation.
         let mut this = unsafe {
             let ptr = alloc(Layout::new::<ECMultGenContext>()) as *mut ECMultGenContext;
             let mut this = Box::from_raw(ptr);
@@ -200,7 +204,7 @@ impl ECMultGenContext {
         let mut gj = Jacobian::default();
         gj.set_ge(&AFFINE_G);
 
-        // Construct a group element with no known corresponding scalar (nothing up my sleave).
+        // Construct a group element with no known corresponding scalar (nothing up my sleeve).
         let mut nums_32 = [0u8; 32];
         debug_assert!(b"The scalar for this x is unknown".len() == 32);
         for (i, v) in b"The scalar for this x is unknown".iter().enumerate() {
@@ -243,6 +247,7 @@ impl ECMultGenContext {
                 this.prec[j][i] = pg;
             }
         }
+
         this
     }
 }

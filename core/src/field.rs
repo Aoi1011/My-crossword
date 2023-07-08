@@ -328,7 +328,7 @@ impl Field {
     // normalize to a zero value. The field implementation may
     // optionally normalize the input, but this should not be replied
     // upon
-    pub fn normalize_to_zero(&self) -> bool {
+    pub fn normalizes_to_zero(&self) -> bool {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
         let mut t2 = self.n[2];
@@ -396,7 +396,7 @@ impl Field {
     // normalize to a zero value. The field implementation may
     // optionally normalize the input, but this should not be relied
     // upon
-    pub fn normalize_to_zero_var(&self) -> bool {
+    pub fn normalizes_to_zero_var(&self) -> bool {
         let mut t0: u32;
         let mut t1: u32;
         let mut t2: u32;
@@ -698,7 +698,7 @@ impl Field {
     pub fn eq_var(&self, other: &Field) -> bool {
         let mut na = self.neg(1);
         na += other;
-        na.normalize_to_zero_var()
+        na.normalizes_to_zero_var()
     }
 
     fn mul_inner(&mut self, a: &Field, b: &Field) {
@@ -1765,7 +1765,7 @@ impl PartialEq for Field {
     fn eq(&self, other: &Self) -> bool {
         let mut na = self.neg(self.magnitude);
         na += other;
-        na.normalize_to_zero()
+        na.normalizes_to_zero()
     }
 }
 
