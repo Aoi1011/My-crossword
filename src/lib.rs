@@ -1,5 +1,6 @@
+use arrayref::{array_mut_ref, array_ref};
 use digest::{generic_array::GenericArray, Digest};
-use libsecp256k1_core::curve::{ECMultGenContext, Jacobian, Scalar};
+use libsecp256k1_core::curve::{ECMultGenContext, Field, Jacobian, Scalar};
 pub use libsecp256k1_core::*;
 
 use crate::curve::{Affine, ECMultContext};
@@ -35,7 +36,7 @@ pub struct Signature {
 /// Tag used for public key  recovery from signature
 pub struct Recoveryid(u8);
 
-#[derive(Debug, Clone, Eq, ParitialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Hashed message input to an ECDSA signature.
 pub struct Message(pub Scalar);
 
@@ -69,7 +70,7 @@ impl PublicKey {
         Self(p)
     }
 
-    #[cfg(feature = "static-context", feature = "lazy-static-context")]
+    #[cfg(any(feature = "static-context", feature = "lazy-static-context"))]
     pub fn from_secret_key(seckey: &SecretKey) -> Self {
         Self::from_secret_key_with_context(seckey, &ECMULT_GEN_CONTEXT)
     }
@@ -109,5 +110,118 @@ impl PublicKey {
         }
     }
 
-    pub fn parse(p: &[u8; util::FULL_PUBLIC_KEY_SIZE]) -> Result<PublicKey, Error> {}
+    pub fn parse(p: &[u8; util::FULL_PUBLIC_KEY_SIZE]) -> Result<PublicKey, Error> {
+        use util::{TAG_PUBKEY_FULL, TAG_PUBKEY_HYBRID_EVEN, TAG_PUBKEY_HYBRID_ODD};
+
+        if !(p[0] == TAG_PUBKEY_FULL
+            || p[0] == TAG_PUBKEY_HYBRID_EVEN
+            || p[0] == TAG_PUBKEY_HYBRID_ODD)
+        {
+            return Err(Error::InvalidPublicKey);
+        }
+        let mut x = Field::default();
+        let mut y = Field::default();
+        if !x.set_b32(array_ref!(p, 1, 32)) {
+            return Err(Error::InvalidPublicKey);
+        }
+        if !y.set_b32(array_ref!(p, 33, 32)) {
+            return Err(Error::InvalidPublicKey);
+        }
+        let mut elem = Affine::default();
+        elem.set_xy(&x, &y);
+        if (p[0] == TAG_PUBKEY_HYBRID_EVEN || p[0] == TAG_PUBKEY_HYBRID_ODD)
+            && (y.is_odd() != (p[0] == TAG_PUBKEY_HYBRID_ODD))
+        {
+            return Err(Error::InvalidPublicKey);
+        }
+        if elem.is_infinity() {
+            return Err(Error::InvalidPublicKey);
+        }
+        if elem.is_valid_var() {
+            Ok(PublicKey(elem))
+        } else {
+            Err(Error::InvalidPublicKey)
+        }
+    }
+
+    pub fn parse_compressed(
+        p: &[u8; util::COMPRESSED_PUBLIC_KEY_SIZE],
+    ) -> Result<PublicKey, Error> {
+        use util::{TAG_PUBKEY_EVEN, TAG_PUBKEY_ODD};
+
+        if !(p[0] == TAG_PUBKEY_EVEN || p[0] == TAG_PUBKEY_ODD) {
+            return Err(Error::InvalidPublicKey);
+        }
+        let mut x = Field::default();
+        if !x.set_b32(array_ref![p, 1, 32]) {
+            return Err(Error::InvalidPublicKey);
+        }
+        let mut elem = Affine::default();
+        elem.set_xo_var(&x, p[0] == TAG_PUBKEY_ODD);
+        if elem.is_infinity() {
+            return Err(Error::InvalidPublicKey);
+        }
+        if elem.is_valid_var() {
+            Ok(PublicKey(elem))
+        } else {
+            Err(Error::InvalidPublicKey)
+        }
+    }
+
+    pub fn serialize(&self) -> [u8; util::FULL_PUBLIC_KEY_SIZE] {
+        use util::TAG_PUBKEY_FULL;
+
+        debug_assert!(!self.0.is_infinity());
+
+        let mut ret = [0u8; 65];
+        let mut elem = self.0;
+
+        elem.x.normalize_var();
+        elem.y.normalize_var();
+        elem.x.fill_b32(array_mut_ref![ret, 1, 32]);
+        elem.y.fill_b32(array_mut_ref![ret, 33, 32]);
+        ret[0] = TAG_PUBKEY_FULL;
+
+        ret
+    }
+
+    pub fn serialize_compressed(&self) -> [u8; util::COMPRESSED_PUBLIC_KEY_SIZE] {
+        use util::{TAG_PUBKEY_EVEN, TAG_PUBKEY_ODD};
+
+        debug_assert!(!self.0.is_infinity());
+
+        let mut ret = [0u8; 33];
+        let mut elem = self.0;
+
+        elem.x.normalize_var();
+        elem.y.normalize_var();
+        elem.x.fill_b32(array_mut_ref![ret, 1, 32]);
+        ret[0] = if elem.y.is_odd() {
+            TAG_PUBKEY_ODD
+        } else {
+            TAG_PUBKEY_EVEN
+        };
+
+        ret
+    }
+
+    pub fn tweak_add_assign_with_context(&mut self, tweak: &SecretKey, context: &ECMultContext) -> Result<(), Error> {
+        let mut r = Jacobian::default();
+        let a = Jacobian::from_ge(&self.0);
+        let one = Scalar::from_int(1);
+        context.ecmult(&mut r, &a, &one, &tweak.0);
+
+        if r.is_infinity() {
+            return Err(Error::TweakOutofRange);
+        }
+
+        self.0.set_gej(&r);
+        Ok(())
+    }
+
+    #[cfg(any(feature = "static-context", feature = "lazy-static-context"))]
+    pub fn tweak_add_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        self.tweak_add_assign_with_context(tweak, &ECMULT_CONTEXT)
+    }
+
 }
