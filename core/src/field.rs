@@ -1,4 +1,4 @@
-use std::{
+use core::{
     cmp::Ordering,
     ops::{Add, AddAssign, Mul, MulAssign},
 };
@@ -10,8 +10,13 @@ macro_rules! debug_assert_bits {
 }
 
 #[derive(Debug, Clone, Copy)]
-// Field element for secp256k1
+/// Field element for secp256k1.
 pub struct Field {
+    /// Store representation of X.
+    /// X = sum(i=0..9, n[i]*2^(i*26)) mod p
+    /// where p = 2^256 - 0x1000003D1
+    ///
+    /// The least signifiant byte is in the front.
     n: [u32; 10],
     magnitude: u32,
     normalized: bool,
@@ -83,7 +88,7 @@ impl Field {
         r = r && (self.n[6] <= 0x3ffffff * m);
         r = r && (self.n[7] <= 0x3ffffff * m);
         r = r && (self.n[8] <= 0x3ffffff * m);
-        r = r && (self.n[9] <= 0x3ffffff * m);
+        r = r && (self.n[9] <= 0x03fffff * m);
         r = r && (self.magnitude <= 32);
         if self.normalized {
             r = r && self.magnitude <= 1;
@@ -103,7 +108,7 @@ impl Field {
         r
     }
 
-    /// Normalize a field element
+    /// Normalize a field element.
     pub fn normalize(&mut self) {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
@@ -190,8 +195,8 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // weakly normalize a field element: reduce it magnitude to 1,
-    // but don't fully normalize
+    /// Weakly normalize a field element: reduce it magnitude to 1,
+    /// but don't fully normalize.
     pub fn normalize_weak(&mut self) {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
@@ -235,7 +240,7 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Normalize a field element, without constant-time gurantee
+    /// Normalize a field element, without constant-time guarantee.
     pub fn normalize_var(&mut self) {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
@@ -324,10 +329,10 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Verify whether a field element represents zero i.e. would
-    // normalize to a zero value. The field implementation may
-    // optionally normalize the input, but this should not be replied
-    // upon
+    /// Verify whether a field element represents zero i.e. would
+    /// normalize to a zero value. The field implementation may
+    /// optionally normalize the input, but this should not be relied
+    /// upon.
     pub fn normalizes_to_zero(&self) -> bool {
         let mut t0 = self.n[0];
         let mut t1 = self.n[1];
@@ -359,7 +364,7 @@ impl Field {
         t3 += t2 >> 26;
         t2 &= 0x3ffffff;
         z0 |= t2;
-        z1 &= t3;
+        z1 &= t2;
         t4 += t3 >> 26;
         t3 &= 0x3ffffff;
         z0 |= t3;
@@ -392,10 +397,10 @@ impl Field {
         z0 == 0 || z1 == 0x3ffffff
     }
 
-    // Verify whether a field element represents zero i.e. would
-    // normalize to a zero value. The field implementation may
-    // optionally normalize the input, but this should not be relied
-    // upon
+    /// Verify whether a field element represents zero i.e. would
+    /// normalize to a zero value. The field implementation may
+    /// optionally normalize the input, but this should not be relied
+    /// upon.
     pub fn normalizes_to_zero_var(&self) -> bool {
         let mut t0: u32;
         let mut t1: u32;
@@ -477,7 +482,7 @@ impl Field {
         z0 == 0 || z1 == 0x3ffffff
     }
 
-    /// Set a field element equal to small integer, Resulting field
+    /// Set a field element equal to a small integer. Resulting field
     /// element is normalized.
     pub fn set_int(&mut self, a: u32) {
         self.n = [a, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -486,12 +491,11 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Verify whether a field element is zero. Requires the input to
-    // be normalized.
+    /// Verify whether a field element is zero. Requires the input to
+    /// be normalized.
     pub fn is_zero(&self) -> bool {
         debug_assert!(self.normalized);
         debug_assert!(self.verify());
-
         (self.n[0]
             | self.n[1]
             | self.n[2]
@@ -501,28 +505,27 @@ impl Field {
             | self.n[6]
             | self.n[7]
             | self.n[8]
-            | self.n[9]
-            | self.n[1])
+            | self.n[9])
             == 0
     }
 
-    // Check the "oddness" of a field element. Requires the input to
-    // be normalized.
+    /// Check the "oddness" of a field element. Requires the input to
+    /// be normalized.
     pub fn is_odd(&self) -> bool {
         debug_assert!(self.normalized);
         debug_assert!(self.verify());
         self.n[0] & 1 != 0
     }
 
-    /// Set a field element equal to zero, initializing all fields
+    /// Sets a field element equal to zero, initializing all fields.
     pub fn clear(&mut self) {
         self.magnitude = 0;
         self.normalized = true;
         self.n = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     }
 
-    // Set a field element equal to 32-byte big endian value. If
-    // successfull, the resulting field element is normalized
+    /// Set a field element equal to 32-byte big endian value. If
+    /// successful, the resulting field element is normalized.
     #[must_use]
     pub fn set_b32(&mut self, a: &[u8; 32]) -> bool {
         self.n[0] = (a[31] as u32)
@@ -604,10 +607,10 @@ impl Field {
         r[19] = ((self.n[3] >> 18) & 0xff) as u8;
         r[20] = ((self.n[3] >> 10) & 0xff) as u8;
         r[21] = ((self.n[3] >> 2) & 0xff) as u8;
-        r[22] = (((self.n[3] & 0x3) << 6) | (self.n[2] >> 20) & 0x3f) as u8;
+        r[22] = (((self.n[3] & 0x3) << 6) | ((self.n[2] >> 20) & 0x3f)) as u8;
         r[23] = ((self.n[2] >> 12) & 0xff) as u8;
         r[24] = ((self.n[2] >> 4) & 0xff) as u8;
-        r[25] = ((self.n[2] & 0xf) << 4 | ((self.n[1] >> 22) & 0xf)) as u8;
+        r[25] = (((self.n[2] & 0xf) << 4) | ((self.n[1] >> 22) & 0xf)) as u8;
         r[26] = ((self.n[1] >> 14) & 0xff) as u8;
         r[27] = ((self.n[1] >> 6) & 0xff) as u8;
         r[28] = (((self.n[1] & 0x3f) << 2) | ((self.n[0] >> 24) & 0x3)) as u8;
@@ -616,17 +619,17 @@ impl Field {
         r[31] = (self.n[0] & 0xff) as u8;
     }
 
-    // Convert a filed element to a 32-byte big endian
-    // value. Require the input to be normalized
+    /// Convert a field element to a 32-byte big endian
+    /// value. Requires the input to be normalized.
     pub fn b32(&self) -> [u8; 32] {
         let mut r = [0u8; 32];
         self.fill_b32(&mut r);
         r
     }
 
-    // Set a filed element equal to the additive inverse of
-    // another. Takes a maximum magnitude of the input as an
-    // argument. The magnitude of the output is one higher
+    /// Set a field element equal to the additive inverse of
+    /// another. Takes a maximum magnitude of the input as an
+    /// argument. The magnitude of the output is one higher.
     pub fn neg_in_place(&mut self, other: &Field, m: u32) {
         debug_assert!(other.magnitude <= m);
         debug_assert!(other.verify());
@@ -648,15 +651,15 @@ impl Field {
     }
 
     /// Compute the additive inverse of this element. Takes the maximum
-    /// expected magnitude of this element as an argument
+    /// expected magnitude of this element as an argument.
     pub fn neg(&self, m: u32) -> Field {
         let mut ret = Field::default();
         ret.neg_in_place(self, m);
         ret
     }
 
-    // Multiple the passed field element with a small integer
-    // constant. Multiple the magnitude by that small integer
+    /// Multiplies the passed field element with a small integer
+    /// constant. Multiplies the magnitude by that small integer.
     pub fn mul_int(&mut self, a: u32) {
         self.n[0] *= a;
         self.n[1] *= a;
@@ -674,10 +677,10 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    // Compare two field elements. Requires both inputs to be
-    // normalized
+    /// Compare two field elements. Requires both inputs to be
+    /// normalized.
     pub fn cmp_var(&self, other: &Field) -> Ordering {
-        // Variable time compare implementation
+        // Variable time compare implementation.
         debug_assert!(self.normalized);
         debug_assert!(other.normalized);
         debug_assert!(self.verify());
@@ -691,7 +694,6 @@ impl Field {
                 return Ordering::Less;
             }
         }
-
         Ordering::Equal
     }
 
@@ -731,11 +733,11 @@ impl Field {
         debug_assert_bits!(b.n[8], 30);
         debug_assert_bits!(b.n[9], 26);
 
-        // [... a b c] is shorthand for ... + a << 52 + b << 26 + c<<0 mod n.
-        // px is shorthand for sum(a[i] * b[x-i], i=0..x).
-        // Note that [x 0 0 0 0 0 0 0 0 0] = [x*R1 x*R0].
+        // [... a b c] is a shorthand for ... + a<<52 + b<<26 + c<<0 mod n.
+        // px is a shorthand for sum(a[i]*b[x-i], i=0..x).
+        // Note that [x 0 0 0 0 0 0 0 0 0 0] = [x*R1 x*R0].
 
-        d = ((a.n[0] as u64) * (b.n[0] as u64))
+        d = ((a.n[0] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[1] as u64) * (b.n[8] as u64))
             .wrapping_add((a.n[2] as u64) * (b.n[7] as u64))
             .wrapping_add((a.n[3] as u64) * (b.n[6] as u64))
@@ -745,17 +747,18 @@ impl Field {
             .wrapping_add((a.n[7] as u64) * (b.n[2] as u64))
             .wrapping_add((a.n[8] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[0] as u64));
+        // debug_assert_bits!(d, 64);
 
-        // [d 0 0 0 0 0 0 0 0 0] = [p9 0 0 0 0 0 0 0 0 0]
+        /* [d 0 0 0 0 0 0 0 0 0] = [p9 0 0 0 0 0 0 0 0 0] */
         t9 = (d & M) as u32;
         d >>= 26;
         debug_assert_bits!(t9, 26);
         debug_assert_bits!(d, 38);
-        // [d t9 0 0 0 0 0 0 0 0 0] = [p9 0 0 0 0 0 0 0 0]
+        /* [d t9 0 0 0 0 0 0 0 0 0] = [p9 0 0 0 0 0 0 0 0 0] */
 
         c = (a.n[0] as u64) * (b.n[0] as u64);
         debug_assert_bits!(c, 60);
-        // [d t9 0 0 0 0 0 0 0 0 c] = [p9 0 0 0 0 0 0 0 0 p0]
+        /* [d t9 0 0 0 0 0 0 0 0 c] = [p9 0 0 0 0 0 0 0 0 p0] */
 
         d = d
             .wrapping_add((a.n[1] as u64) * (b.n[9] as u64))
@@ -768,30 +771,28 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[2] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[1] as u64));
         debug_assert_bits!(d, 63);
-        // [d t9 0 0 0 0 0 0 0 0 c] = [p10 p9 0 0 0 0 0 0 0 0 p0]
-
+        /* [d t9 0 0 0 0 0 0 0 0 c] = [p10 p9 0 0 0 0 0 0 0 0 p0] */
         v0 = d & M;
         d >>= 26;
         c += v0 * R0;
         debug_assert_bits!(v0, 26);
         debug_assert_bits!(d, 37);
         debug_assert_bits!(c, 61);
-        // [d u0 0 0 0 0 0 0 0 0 c-u0*R0] = [p10 p9 0 0 0 0 0 0 0 0 p0]
+        /* [d u0 t9 0 0 0 0 0 0 0 0 c-u0*R0] = [p10 p9 0 0 0 0 0 0 0 0 p0] */
         t0 = (c & M) as u32;
         c >>= 26;
         c += v0 * R1;
 
         debug_assert_bits!(t0, 26);
         debug_assert_bits!(c, 37);
-        // [d u0 0 0 0 0 0 0 0 0 c-u0*R1 t0-u0*R0] = [p10 p9 0 0 0 0 0 0 0 0 p0]
-        // [d 0 t9 0 0 0 0 0 0 0 t0] = [p10 p9 0 0 0 0 0 0 0 0 p0]
+        /* [d u0 t9 0 0 0 0 0 0 0 c-u0*R1 t0-u0*R0] = [p10 p9 0 0 0 0 0 0 0 0 p0] */
+        /* [d 0 t9 0 0 0 0 0 0 0 c t0] = [p10 p9 0 0 0 0 0 0 0 0 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[1] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 62);
-        // [d 0 t9 0 0 0 0 0 0 c t0] = [p10 p9 0 0 0 0 0 0 0 p1 p0]
-
+        /* [d 0 t9 0 0 0 0 0 0 0 c t0] = [p10 p9 0 0 0 0 0 0 0 p1 p0] */
         d = d
             .wrapping_add((a.n[2] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[3] as u64) * (b.n[8] as u64))
@@ -802,28 +803,28 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[3] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[2] as u64));
         debug_assert_bits!(d, 63);
-        // [d 0 t9 0 0 0 0 0 0 c t0] = [p11 p10 p9 0 0 0 0 0 0 p1 p0]
+        /* [d 0 t9 0 0 0 0 0 0 0 c t0] = [p11 p10 p9 0 0 0 0 0 0 0 p1 p0] */
         v1 = d & M;
         d >>= 26;
         c += v1 * R0;
         debug_assert_bits!(v1, 26);
         debug_assert_bits!(d, 37);
         debug_assert_bits!(c, 63);
-        // [d u1 0 t9  0 0 0 0 0 c-u1*R0 t0] = [p11 p10 p9 0 0 0 0 0 0 p1 p0]
+        /* [d u1 0 t9 0 0 0 0 0 0 0 c-u1*R0 t0] = [p11 p10 p9 0 0 0 0 0 0 0 p1 p0] */
         t1 = (c & M) as u32;
         c >>= 26;
         c += v1 * R1;
         debug_assert_bits!(t1, 26);
         debug_assert_bits!(c, 38);
-        // [d u1 0 t9 0 0 0 0 c-u1*R1 t1-u1*R0 t0] = [p11 p10 p9 0 0 0 0 0 0 p1 p0]
-        // [d 0 0 t9 0 0 0 0 c t1 t0] = [p11 p10 p9 0 0 0 0 0 0 p1 p0]
+        /* [d u1 0 t9 0 0 0 0 0 0 c-u1*R1 t1-u1*R0 t0] = [p11 p10 p9 0 0 0 0 0 0 0 p1 p0] */
+        /* [d 0 0 t9 0 0 0 0 0 0 c t1 t0] = [p11 p10 p9 0 0 0 0 0 0 0 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[2] as u64))
             .wrapping_add((a.n[1] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[2] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 62);
-        // [d 0 0 t9 0 0 0 0 0 c t1 t0] = [p11 p10 p9 0 0 0 0 0 p2 p1 p0]
+        /* [d 0 0 t9 0 0 0 0 0 0 c t1 t0] = [p11 p10 p9 0 0 0 0 0 0 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[3] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[4] as u64) * (b.n[8] as u64))
@@ -833,20 +834,21 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[4] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[3] as u64));
         debug_assert_bits!(d, 63);
-        // [d 0 0 t9 0 0 0 0 c t1 t0] = [p12 p11 p10 p9 0 0 0 0 p2 p1 p0]
+        /* [d 0 0 t9 0 0 0 0 0 0 c t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0] */
         v2 = d & M;
         d >>= 26;
         c += v2 * R0;
         debug_assert_bits!(v2, 26);
         debug_assert_bits!(d, 37);
         debug_assert_bits!(c, 63);
-        // [d u2 0 0 t9 0 0 0 0 0 0 c-u2*R0 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0]
+        /* [d u2 0 0 t9 0 0 0 0 0 0 c-u2*R0 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0] */
         t2 = (c & M) as u32;
         c >>= 26;
         c += v2 * R1;
         debug_assert_bits!(t2, 26);
         debug_assert_bits!(c, 38);
-        // [d u2 0 0 t9 0 0 0 0 0 c-u2*R1 t2-u2*R0 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0]
+        /* [d u2 0 0 t9 0 0 0 0 0 c-u2*R1 t2-u2*R0 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0] */
+        /* [d 0 0 0 t9 0 0 0 0 0 c t2 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 0 p2 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[3] as u64))
@@ -854,7 +856,7 @@ impl Field {
             .wrapping_add((a.n[2] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[3] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 63);
-
+        /* [d 0 0 0 t9 0 0 0 0 0 c t2 t1 t0] = [p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[4] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[5] as u64) * (b.n[8] as u64))
@@ -863,21 +865,21 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[5] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[4] as u64));
         debug_assert_bits!(d, 63);
-        // [d 0 0 0 t9 0 0 0 0 0 c t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0]
+        /* [d 0 0 0 t9 0 0 0 0 0 c t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0] */
         v3 = d & M;
         d >>= 26;
         c += v3 * R0;
         debug_assert_bits!(v3, 26);
         debug_assert_bits!(d, 37);
         // debug_assert_bits!(c, 64);
-        // [d u3 0 0 0 t9 0 0 0 0 0 c-u3*R0 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0]
+        /* [d u3 0 0 0 t9 0 0 0 0 0 c-u3*R0 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0] */
         t3 = (c & M) as u32;
         c >>= 26;
         c += v3 * R1;
         debug_assert_bits!(t3, 26);
         debug_assert_bits!(c, 39);
-        // [d u3 0 0 0 t9 0 0 0 0 c-u3*R1 t3-u3*R0 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2
-        // p1 p0]
+        /* [d u3 0 0 0 t9 0 0 0 0 c-u3*R1 t3-u3*R0 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 t9 0 0 0 0 c t3 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 0 p3 p2 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[4] as u64))
@@ -886,7 +888,7 @@ impl Field {
             .wrapping_add((a.n[3] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[4] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 63);
-        // [d 0 0 0 0 t9 0 0 0 0  c t3 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 t9 0 0 0 0 c t3 t2 t1 t0] = [p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[5] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[6] as u64) * (b.n[8] as u64))
@@ -894,24 +896,21 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[6] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[5] as u64));
         debug_assert_bits!(d, 62);
-        // [d 0 0 0 0 t9 0 0 0 0 c t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 t9 0 0 0 0 c t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0] */
         v4 = d & M;
         d >>= 26;
         c += v4 * R0;
         debug_assert_bits!(v4, 26);
         debug_assert_bits!(d, 36);
-        // debug_assert_bits(c, 64);
-        // [d u4 0 0 0 0 t9 0 0 0 0 c-u4*R0 t3 t2 t1 t0] = [p14 p13 p12 p11 p19 p9 0 0 0 0 p4 p3 p2
-        // p1 p0]
+        // debug_assert_bits!(c, 64);
+        /* [d u4 0 0 0 0 t9 0 0 0 0 c-u4*R0 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0] */
         t4 = (c & M) as u32;
         c >>= 26;
         c += v4 * R1;
         debug_assert_bits!(t4, 26);
         debug_assert_bits!(c, 39);
-        // [d u4 0 0 0 0 t9 0 0 0 c-u4*R1 t4-u4*R0 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0
-        // p4 p3 p2 p1 p0]
-        // [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1
-        // p0]
+        /* [d u4 0 0 0 0 t9 0 0 0 c-u4*R1 t4-u4*R0 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 0 p4 p3 p2 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[5] as u64))
@@ -921,33 +920,29 @@ impl Field {
             .wrapping_add((a.n[4] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[5] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 63);
-        // [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1
-        // p0]
+        /* [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[6] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[7] as u64) * (b.n[8] as u64))
             .wrapping_add((a.n[8] as u64) * (b.n[7] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[6] as u64));
         debug_assert_bits!(d, 62);
-        // [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2
-        // p1 p0]
+        /* [d 0 0 0 0 0 t9 0 0 0 c t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1 p0] */
         v5 = d & M;
         d >>= 26;
         c += v5 * R0;
         debug_assert_bits!(v5, 26);
         debug_assert_bits!(d, 36);
         // debug_assert_bits!(c, 64);
-        // [d u5 0 0 0 0 0 t9 0 0 0 c-u5*R0 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5
-        // p4 p3 p2 p1 p0]
+        /* [d u5 0 0 0 0 0 t9 0 0 0 c-u5*R0 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1 p0] */
         t5 = (c & M) as u32;
         c >>= 26;
         c += v5 * R1;
         debug_assert_bits!(t5, 26);
         debug_assert_bits!(c, 39);
-        // [d u5 0 0 0 0 0 t9 0 0 c-u5*R1 t5-u5*R0 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9
-        // 0 0 0 p5 p4 p3 p2 p1 p0]
-        // [d 0 0 0 0 0 0 t9 0 0 c t5 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3
-        // p2 p1 p0]
+        /* [d u5 0 0 0 0 0 t9 0 0 c-u5*R1 t5-u5*R0 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 0 0 t9 0 0 c t5 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 0 p5 p4 p3 p2 p1 p0] */
+
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[6] as u64))
             .wrapping_add((a.n[1] as u64) * (b.n[5] as u64))
@@ -957,32 +952,27 @@ impl Field {
             .wrapping_add((a.n[5] as u64) * (b.n[1] as u64))
             .wrapping_add((a.n[6] as u64) * (b.n[0] as u64));
         debug_assert_bits!(c, 63);
-        // [d 0 0 0 0 0 0 c t5 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1
-        // p0]
+        /* [d 0 0 0 0 0 0 t9 0 0 c t5 t4 t3 t2 t1 t0] = [p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[7] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[8] as u64) * (b.n[8] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[7] as u64));
         debug_assert_bits!(d, 61);
-        // [d 0 0 0 0 0 0 t9 0 0 c t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5
-        // p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 0 0 t9 0 0 c t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1 p0] */
         v6 = d & M;
         d >>= 26;
         c += v6 * R0;
         debug_assert_bits!(v6, 26);
         debug_assert_bits!(d, 35);
-        //  debug_assert_bits!(c, 64);
-        //  [d u6 0 0 0 0 0 0 t9 0 0 c-u6*R0 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0
-        //  0 p6 p5 p4 p3 p2 p1 p0]
+        // debug_assert_bits!(c, 64);
+        /* [d u6 0 0 0 0 0 0 t9 0 0 c-u6*R0 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1 p0] */
         t6 = (c & M) as u32;
         c >>= 26;
         c += v6 * R1;
         debug_assert_bits!(t6, 26);
         debug_assert_bits!(c, 39);
-        // [d u6 0 0 0 0 0 0 t9 0 c-u6*R0 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0
-        // p6 p5 p4 p3 p2 p1 p0]
-        // [d 0 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6
-        // p5 p4 p3 p2 p1, p0]
+        /* [d u6 0 0 0 0 0 0 t9 0 c-u6*R1 t6-u6*R0 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 0 p6 p5 p4 p3 p2 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[7] as u64))
@@ -995,14 +985,12 @@ impl Field {
             .wrapping_add((a.n[7] as u64) * (b.n[0] as u64));
         // debug_assert_bits!(c, 64);
         debug_assert!(c <= 0x8000007c00000007);
-        // [d 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7
-        // p6 p5 p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p16 p15 p14 p13 p12 p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0] */
         d = d
             .wrapping_add((a.n[8] as u64) * (b.n[9] as u64))
             .wrapping_add((a.n[9] as u64) * (b.n[8] as u64));
         debug_assert_bits!(d, 58);
-        // [d 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7
-        // p6 p5 p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 0 0 0 t9 0 c t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0] */
         v7 = d & M;
         d >>= 26;
         c += v7 * R0;
@@ -1010,17 +998,14 @@ impl Field {
         debug_assert_bits!(d, 32);
         // debug_assert_bits!(c, 64);
         debug_assert!(c <= 0x800001703fffc2f7);
-        // [d u7 0 0 0 0 0 0 0 t9 0 c*u7R0 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10
-        // p9 0 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u7 0 0 0 0 0 0 0 t9 0 c-u7*R0 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0] */
         t7 = (c & M) as u32;
         c >>= 26;
         c += v7 * R1;
         debug_assert_bits!(t7, 26);
         debug_assert_bits!(c, 38);
-        // [d u7 0 0 0 0 0 0 0 t9 c-u7*R1 t7-u7*R0 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0]
-        // [d 0 0 0 0 0 0 0 0 t9 c t7 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0
-        // p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u7 0 0 0 0 0 0 0 t9 c-u7*R1 t7-u7*R0 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 0 0 0 0 t9 c t7 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 0 p7 p6 p5 p4 p3 p2 p1 p0] */
 
         c = c
             .wrapping_add((a.n[0] as u64) * (b.n[8] as u64))
@@ -1034,10 +1019,10 @@ impl Field {
             .wrapping_add((a.n[8] as u64) * (b.n[0] as u64));
         // debug_assert_bits!(c, 64);
         debug_assert!(c <= 0x9000007b80000008);
+        /* [d 0 0 0 0 0 0 0 0 t9 c t7 t6 t5 t4 t3 t2 t1 t0] = [p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         d = d.wrapping_add((a.n[9] as u64) * (b.n[9] as u64));
         debug_assert_bits!(d, 57);
-        // [d 0 0 0 0 0 0 0 0 t9 c t7 t6 t4 t5 t4 t3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11
-        // p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d 0 0 0 0 0 0 0 0 t9 c t7 t6 t5 t4 t3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         v8 = d & M;
         d >>= 26;
         c += v8 * R0;
@@ -1045,39 +1030,31 @@ impl Field {
         debug_assert_bits!(d, 31);
         // debug_assert_bits!(c, 64);
         debug_assert!(c <= 0x9000016fbfffc2f8);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 t4 t3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 t4 t3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
 
         self.n[3] = t3;
         debug_assert_bits!(self.n[3], 26);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 t4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 t4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         self.n[4] = t4;
         debug_assert_bits!(self.n[4], 26);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 t5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         self.n[5] = t5;
         debug_assert_bits!(self.n[5], 26);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 t6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         self.n[6] = t6;
         debug_assert_bits!(self.n[6], 26);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 t7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         self.n[7] = t7;
         debug_assert_bits!(self.n[7], 26);
-        // [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12
-        // p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9 c-u8*R0 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
 
         self.n[8] = (c & M) as u32;
         c >>= 26;
         c += v8 * R1;
         debug_assert_bits!(self.n[8], 26);
         debug_assert_bits!(c, 39);
-        // [d u8 0 0 0 0 0 0 0 0 t9+c-u8*R1 r8-u8*R0 r7 r6 r5 r4 t3 t2 t1 t0] = [p18 p17 p16 p15
-        // p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
-        // [d 0 0 0 0 0 0 0 0 0 t9+c r8 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11
-        // p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0]
+        /* [d u8 0 0 0 0 0 0 0 0 t9+c-u8*R1 r8-u8*R0 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
+        /* [d 0 0 0 0 0 0 0 0 0 t9+c r8 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
         c += d * R0 + t9 as u64;
         debug_assert_bits!(c, 45);
         /* [d 0 0 0 0 0 0 0 0 0 c-d*R0 r8 r7 r6 r5 r4 r3 t2 t1 t0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
@@ -1448,9 +1425,9 @@ impl Field {
         /* [r9 r8 r7 r6 r5 r4 r3 r2 r1 r0] = [p18 p17 p16 p15 p14 p13 p12 p11 p10 p9 p8 p7 p6 p5 p4 p3 p2 p1 p0] */
     }
 
-    // Sets a field element to be the product of two others. Requires
-    // the inputs' magnitude to be at most 8. The output magnitude
-    // is 1 (but not guranteed to be normalized).
+    /// Sets a field element to be the product of two others. Requires
+    /// the inputs' magnitudes to be at most 8. The output magnitude
+    /// is 1 (but not guaranteed to be normalized).
     pub fn mul_in_place(&mut self, a: &Field, b: &Field) {
         debug_assert!(a.magnitude <= 8);
         debug_assert!(b.magnitude <= 8);
@@ -1462,16 +1439,16 @@ impl Field {
         debug_assert!(self.verify());
     }
 
-    /// Sets a field element to be the square of another. Requires the input's
-    /// magnitude to be at most 8. The output magnitude is 1
-    /// (but not guranteed to  be normalized)
+    /// Sets a field element to be the square of another. Requires the
+    /// input's magnitude to be at most 8. The output magnitude is 1
+    /// (but not guaranteed to be normalized).
     pub fn sqr_in_place(&mut self, a: &Field) {
         debug_assert!(a.magnitude <= 8);
         debug_assert!(a.verify());
         self.sqr_inner(a);
         self.magnitude = 1;
         self.normalized = false;
-        debug_assert!(self.verify());
+        debug_assert!(a.verify());
     }
 
     pub fn sqr(&self) -> Field {
@@ -1481,10 +1458,10 @@ impl Field {
     }
 
     /// If a has a square root, it is computed in r and 1 is
-    /// returned. If a does not have a squre root, the root of its
+    /// returned. If a does not have a square root, the root of its
     /// negation is computed and 0 is returned. The input's magnitude
-    /// can be most 8. The output magnitude is 1 (but not
-    /// guranteed to be normalized). The result in r will always be a
+    /// can be at most 8. The output magnitude is 1 (but not
+    /// guaranteed to be normalized). The result in r will always be a
     /// square itself.
     pub fn sqrt(&self) -> (Field, bool) {
         let mut x2 = self.sqr();
@@ -1563,9 +1540,9 @@ impl Field {
         (r, &t1 == self)
     }
 
-    // Sets a field element to be the (modular) inverse of
-    // another. Requires the input's magnitude to be at most 0. The
-    // output magnitude is 1 (but not guaranteed to be normalized)
+    /// Sets a field element to be the (modular) inverse of
+    /// another. Requires the input's magnitude to be at most 8. The
+    /// output magnitude is 1 (but not guaranteed to be normalized).
     pub fn inv(&self) -> Field {
         let mut x2 = self.sqr();
         x2 *= self;
@@ -1647,19 +1624,19 @@ impl Field {
     }
 
     /// Potentially faster version of secp256k1_fe_inv, without
-    /// constant-time guarantee
+    /// constant-time guarantee.
     pub fn inv_var(&self) -> Field {
         self.inv()
     }
 
-    // Checks whether a field element is a quadratic radidue.
+    /// Checks whether a field element is a quadratic residue.
     pub fn is_quad_var(&self) -> bool {
-        let (__, ret) = self.sqrt();
+        let (_, ret) = self.sqrt();
         ret
     }
 
-    // If flag is true, set *r equal to *a; otherwise leave
-    // it. Constant-time.
+    /// If flag is true, set *r equal to *a; otherwise leave
+    /// it. Constant-time.
     pub fn cmov(&mut self, other: &Field, flag: bool) {
         self.n[0] = if flag { other.n[0] } else { self.n[0] };
         self.n[1] = if flag { other.n[1] } else { self.n[1] };
@@ -1685,7 +1662,7 @@ impl Field {
 }
 
 impl Default for Field {
-    fn default() -> Self {
+    fn default() -> Field {
         Self {
             n: [0u32; 10],
             magnitude: 0,
@@ -1696,73 +1673,81 @@ impl Default for Field {
 
 impl Add<Field> for Field {
     type Output = Field;
-
-    fn add(self, rhs: Field) -> Self::Output {
+    fn add(self, other: Field) -> Field {
         let mut ret = self;
-        ret.add_assign(&rhs);
+        ret.add_assign(&other);
+        ret
+    }
+}
+
+impl<'a, 'b> Add<&'a Field> for &'b Field {
+    type Output = Field;
+    fn add(self, other: &'a Field) -> Field {
+        let mut ret = *self;
+        ret.add_assign(other);
         ret
     }
 }
 
 impl<'a> AddAssign<&'a Field> for Field {
-    fn add_assign(&mut self, rhs: &'a Field) {
-        self.n[0] += rhs.n[0];
-        self.n[1] += rhs.n[1];
-        self.n[2] += rhs.n[2];
-        self.n[3] += rhs.n[3];
-        self.n[4] += rhs.n[4];
-        self.n[5] += rhs.n[5];
-        self.n[6] += rhs.n[6];
-        self.n[7] += rhs.n[7];
-        self.n[8] += rhs.n[8];
-        self.n[9] += rhs.n[9];
+    fn add_assign(&mut self, other: &'a Field) {
+        self.n[0] += other.n[0];
+        self.n[1] += other.n[1];
+        self.n[2] += other.n[2];
+        self.n[3] += other.n[3];
+        self.n[4] += other.n[4];
+        self.n[5] += other.n[5];
+        self.n[6] += other.n[6];
+        self.n[7] += other.n[7];
+        self.n[8] += other.n[8];
+        self.n[9] += other.n[9];
 
-        self.magnitude += rhs.magnitude;
+        self.magnitude += other.magnitude;
         self.normalized = false;
         debug_assert!(self.verify());
     }
 }
 
 impl AddAssign<Field> for Field {
-    fn add_assign(&mut self, rhs: Field) {
-        self.add_assign(&rhs);
-    }
-}
-
-impl<'a, 'b> Mul<&'a Field> for &'b Field {
-    type Output = Field;
-    fn mul(self, rhs: &'a Field) -> Self::Output {
-        let mut ret = Field::default();
-        ret.mul_in_place(self, rhs);
-        ret
-    }
-}
-
-impl<'a> MulAssign<&'a Field> for Field {
-    fn mul_assign(&mut self, rhs: &'a Field) {
-        let mut ret = Field::default();
-        ret.mul_in_place(self, rhs);
-        *self = ret;
-    }
-}
-
-impl MulAssign<Field> for Field {
-    fn mul_assign(&mut self, rhs: Field) {
-        self.mul_assign(&rhs)
+    fn add_assign(&mut self, other: Field) {
+        self.add_assign(&other)
     }
 }
 
 impl Mul<Field> for Field {
     type Output = Field;
-    fn mul(self, rhs: Field) -> Self::Output {
+    fn mul(self, other: Field) -> Field {
         let mut ret = Field::default();
-        ret.mul_in_place(&self, &rhs);
+        ret.mul_in_place(&self, &other);
         ret
     }
 }
 
+impl<'a, 'b> Mul<&'a Field> for &'b Field {
+    type Output = Field;
+    fn mul(self, other: &'a Field) -> Field {
+        let mut ret = Field::default();
+        ret.mul_in_place(self, other);
+        ret
+    }
+}
+
+impl<'a> MulAssign<&'a Field> for Field {
+    fn mul_assign(&mut self, other: &'a Field) {
+        let mut ret = Field::default();
+        ret.mul_in_place(self, other);
+        *self = ret;
+    }
+}
+
+impl MulAssign<Field> for Field {
+    fn mul_assign(&mut self, other: Field) {
+        self.mul_assign(&other)
+    }
+}
+
 impl PartialEq for Field {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &Field) -> bool {
         let mut na = self.neg(self.magnitude);
         na += other;
         na.normalizes_to_zero()
@@ -1772,24 +1757,24 @@ impl PartialEq for Field {
 impl Eq for Field {}
 
 impl Ord for Field {
-    fn cmp(&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Field) -> Ordering {
         self.cmp_var(other)
     }
 }
 
 impl PartialOrd for Field {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Field) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-// Compact field element storage
+/// Compact field element storage.
 pub struct FieldStorage(pub [u32; 8]);
 
 impl Default for FieldStorage {
-    fn default() -> Self {
-        Self([0; 8])
+    fn default() -> FieldStorage {
+        FieldStorage([0; 8])
     }
 }
 
@@ -1820,22 +1805,23 @@ impl FieldStorage {
 }
 
 impl From<FieldStorage> for Field {
-    fn from(value: FieldStorage) -> Self {
+    fn from(a: FieldStorage) -> Field {
         let mut r = Field::default();
 
-        r.n[0] = value.0[0] & 0x3FFFFFF;
-        r.n[1] = value.0[0] >> 26 | ((value.0[1] << 6) & 0x3FFFFFF);
-        r.n[2] = value.0[1] >> 20 | ((value.0[2] << 12) & 0x3FFFFFF);
-        r.n[3] = value.0[2] >> 14 | ((value.0[3] << 18) & 0x3FFFFFF);
-        r.n[4] = value.0[3] >> 8 | ((value.0[4] << 24) & 0x3FFFFFF);
-        r.n[5] = (value.0[4] >> 2) | &0x3FFFFFF;
-        r.n[6] = value.0[4] >> 28 | ((value.0[5] << 4) & 0x3FFFFFF);
-        r.n[7] = value.0[5] >> 22 | ((value.0[6] << 10) & 0x3FFFFFF);
-        r.n[8] = value.0[6] >> 16 | ((value.0[7] << 16) & 0x3FFFFFF);
-        r.n[9] = value.0[7] >> 10;
+        r.n[0] = a.0[0] & 0x3FFFFFF;
+        r.n[1] = a.0[0] >> 26 | ((a.0[1] << 6) & 0x3FFFFFF);
+        r.n[2] = a.0[1] >> 20 | ((a.0[2] << 12) & 0x3FFFFFF);
+        r.n[3] = a.0[2] >> 14 | ((a.0[3] << 18) & 0x3FFFFFF);
+        r.n[4] = a.0[3] >> 8 | ((a.0[4] << 24) & 0x3FFFFFF);
+        r.n[5] = (a.0[4] >> 2) & 0x3FFFFFF;
+        r.n[6] = a.0[4] >> 28 | ((a.0[5] << 4) & 0x3FFFFFF);
+        r.n[7] = a.0[5] >> 22 | ((a.0[6] << 10) & 0x3FFFFFF);
+        r.n[8] = a.0[6] >> 16 | ((a.0[7] << 16) & 0x3FFFFFF);
+        r.n[9] = a.0[7] >> 10;
 
         r.magnitude = 1;
         r.normalized = true;
+
         r
     }
 }
