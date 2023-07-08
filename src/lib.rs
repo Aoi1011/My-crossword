@@ -224,4 +224,38 @@ impl PublicKey {
         self.tweak_add_assign_with_context(tweak, &ECMULT_CONTEXT)
     }
 
+    pub fn tweak_mul_assign_with_context(&mut self, tweak: &SecretKey, context: &ECMultContext) -> Result<(), Error> {
+        if tweak.0.is_zero() {
+            return Err(Error::TweakOutofRange);
+        }
+
+        let mut r = Jacobian::default();
+        let zero = Scalar::from_int(0);
+        let pt = Jacobian::from_ge(&self.0);
+        context.ecmult(&mut r, &pt, &tweak.0, &zero);
+
+        self.0.set_gej(&r);
+        Ok(())
+    }
+
+    #[cfg(any(feature = "static-context", feature = "lay-static-context"))]
+    pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        self.tweak_mul_assign_with_context(tweak, &ECMULT_CONTEXT)
+    }
+
+    pub fn combine(keys: &[PublicKey]) -> Result<Self, Error> {
+        let mut qj = Jacobian::default();
+        qj.set_infinity();
+
+        for key in keys {
+            qj = qj.add_ge(&key.0);
+        }
+
+        if qj.is_infinity() {
+            return Err(Error::InvalidPublicKey);
+        }
+
+        let q = Affine::from_gej(&qj);
+        Ok(PublicKey(q))
+    }
 }
