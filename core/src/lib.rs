@@ -61,7 +61,7 @@ pub mod util {
 
     pub use crate::{
         ecmult::{
-            odd_multiple_table, ECMULT_TABLE_SIZE_A, ECMULT_TABLE_SIZE_G, WINDOW_A, WINDOW_G,
+            odd_multiples_table, ECMULT_TABLE_SIZE_A, ECMULT_TABLE_SIZE_G, WINDOW_A, WINDOW_G,
         },
         group::{globalz_set_table_gej, set_table_gej_var, AFFINE_INFINITY, JACOBIAN_INFINITY},
     };
