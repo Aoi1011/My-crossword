@@ -6,7 +6,7 @@ pub enum Error {
     InvalidRecoveryId,
     InvalidMessage,
     InvalidInputLength,
-    TweakOutofRange,
+    TweakOutOfRange,
     InvalidAffine,
 }
 
@@ -22,7 +22,7 @@ impl core::fmt::Display for Error {
             Error::InvalidRecoveryId => write!(f, "Invalid recovery id"),
             Error::InvalidMessage => write!(f, "Invalid message"),
             Error::InvalidInputLength => write!(f, "Invalid input length"),
-            Error::TweakOutofRange => write!(f, "Tweak out of range"),
+            Error::TweakOutOfRange => write!(f, "Tweak out of range"),
             Error::InvalidAffine => write!(f, "Invalid Affine"),
         }
     }

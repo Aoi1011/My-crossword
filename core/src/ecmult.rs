@@ -1,12 +1,10 @@
-use std::alloc::{alloc, Layout};
-
-use subtle::Choice;
-
 use crate::{
     field::Field,
     group::{globalz_set_table_gej, set_table_gej_var, Affine, AffineStorage, Jacobian, AFFINE_G},
     scalar::Scalar,
 };
+use std::alloc::{alloc, Layout};
+use subtle::Choice;
 
 pub const WINDOW_A: usize = 5;
 pub const WINDOW_G: usize = 16;
@@ -28,7 +26,7 @@ fn odd_multiples_table_storage_var(pre: &mut [AffineStorage], a: &Jacobian) {
         zr.push(Field::default());
     }
 
-    odd_multiple_table(&mut prej, &mut zr, a);
+    odd_multiples_table(&mut prej, &mut zr, a);
     set_table_gej_var(&mut prea, &prej, &zr);
 
     for i in 0..pre.len() {
@@ -36,29 +34,33 @@ fn odd_multiples_table_storage_var(pre: &mut [AffineStorage], a: &Jacobian) {
     }
 }
 
-/// Context for accelerating the computation of a*P + b*G
+/// Context for accelerating the computation of a*P + b*G.
 pub struct ECMultContext {
     pre_g: [AffineStorage; ECMULT_TABLE_SIZE_G],
 }
 
 impl ECMultContext {
-    /// Create a new 'ECMultContext' from raw values.
+    /// Create a new `ECMultContext` from raw values.
     ///
     /// # Safety
-    /// The function is unsafe because incorrect value of 'pre_g' can lead to
+    /// The function is unsafe because incorrect value of `pre_g` can lead to
     /// crypto logic failure. You most likely do not want to use this function,
-    /// but 'ECMulContext::new_boxed'.
+    /// but `ECMultContext::new_boxed`.
     pub const unsafe fn new_from_raw(pre_g: [AffineStorage; ECMULT_TABLE_SIZE_G]) -> Self {
         Self { pre_g }
     }
 
-    /// Inspect raw values of 'ECMulContext'.
+    /// Inspect raw values of `ECMultContext`.
     pub fn inspect_raw(&self) -> &[AffineStorage; ECMULT_TABLE_SIZE_G] {
         &self.pre_g
     }
 
-    /// Generate a new 'ECMulContext' on the heap. Note that this function is expensive.
+    /// Generate a new `ECMultContext` on the heap. Note that this function is expensive.
     pub fn new_boxed() -> Box<Self> {
+        // This unsafe block allocates a new, unitialized `ECMultContext` and
+        // then fills in the value. This is to avoid allocating it on stack
+        // because the struct is big. All values in `ECMultContext` are manually
+        // initialized after allocation.
         let mut this = unsafe {
             let ptr = alloc(Layout::new::<ECMultContext>()) as *mut ECMultContext;
             let mut this = Box::from_raw(ptr);
@@ -79,7 +81,7 @@ impl ECMultContext {
 }
 
 /// Set a batch of group elements equal to the inputs given in jacobian
-/// coordinates. Not constant time
+/// coordinates. Not constant time.
 pub fn set_all_gej_var(a: &[Jacobian]) -> Vec<Affine> {
     let mut az: Vec<Field> = Vec::with_capacity(a.len());
     for point in a {
@@ -99,11 +101,10 @@ pub fn set_all_gej_var(a: &[Jacobian]) -> Vec<Affine> {
             count += 1;
         }
     }
-
     ret
 }
 
-/// Calculate the (modular) invarses of a batch of field
+/// Calculate the (modular) inverses of a batch of field
 /// elements. Requires the inputs' magnitudes to be at most 8. The
 /// output magnitudes are 1 (but not guaranteed to be
 /// normalized).
@@ -136,11 +137,10 @@ pub fn inv_all_var(fields: &[Field]) -> Vec<Field> {
 const GEN_BLIND: Scalar = Scalar([
     2217680822, 850875797, 1046150361, 1330484644, 4015777837, 2466086288, 2052467175, 2084507480,
 ]);
-
 const GEN_INITIAL: Jacobian = Jacobian {
     x: Field::new_raw(
-        86608, 43357028, 207667908, 262670128, 142222828, 38529388, 267186148, 45417712, 115291924,
-        13447464,
+        586608, 43357028, 207667908, 262670128, 142222828, 38529388, 267186148, 45417712,
+        115291924, 13447464,
     ),
     y: Field::new_raw(
         12696548, 208302564, 112025180, 191752716, 143238548, 145482948, 228906000, 69755164,
@@ -153,7 +153,7 @@ const GEN_INITIAL: Jacobian = Jacobian {
     infinity: false,
 };
 
-/// Context for accelerating the computation of a * G
+/// Context for accelerating the computation of a*G.
 pub struct ECMultGenContext {
     prec: [[AffineStorage; 16]; 64],
     blind: Scalar,
@@ -161,12 +161,12 @@ pub struct ECMultGenContext {
 }
 
 impl ECMultGenContext {
-    /// Create a new 'ECMultGenContext' from raw value.
+    /// Create a new `ECMultGenContext` from raw values.
     ///
     /// # Safety
-    /// The function is unsafe because incorrect value of 'pre_g' can lead to
+    /// The function is unsafe because incorrect value of `pre_g` can lead to
     /// crypto logic failure. You most likely do not want to use this function,
-    /// but 'ECMulContext::new_boxed'.
+    /// but `ECMultGenContext::new_boxed`.
     pub const unsafe fn new_from_raw(prec: [[AffineStorage; 16]; 64]) -> Self {
         Self {
             prec,
@@ -175,12 +175,17 @@ impl ECMultGenContext {
         }
     }
 
-    /// Inspect 'ECMultGenContext' values.
+    /// Inspect `ECMultGenContext` values.
     pub fn inspect_raw(&self) -> &[[AffineStorage; 16]; 64] {
         &self.prec
     }
 
+    /// Generate a new `ECMultGenContext` on the heap. Note that this function is expensive.
     pub fn new_boxed() -> Box<Self> {
+        // This unsafe block allocates a new, unitialized `ECMultGenContext` and
+        // then fills in the value. This is to avoid allocating it on stack
+        // because the struct is big. All values in `ECMultGenContext` are
+        // manually initialized after allocation.
         let mut this = unsafe {
             let ptr = alloc(Layout::new::<ECMultGenContext>()) as *mut ECMultGenContext;
             let mut this = Box::from_raw(ptr);
@@ -200,7 +205,7 @@ impl ECMultGenContext {
         let mut gj = Jacobian::default();
         gj.set_ge(&AFFINE_G);
 
-        // Construct a group element with no known corresponding scalar (nothing up my sleave).
+        // Construct a group element with no known corresponding scalar (nothing up my sleeve).
         let mut nums_32 = [0u8; 32];
         debug_assert!(b"The scalar for this x is unknown".len() == 32);
         for (i, v) in b"The scalar for this x is unknown".iter().enumerate() {
@@ -243,11 +248,12 @@ impl ECMultGenContext {
                 this.prec[j][i] = pg;
             }
         }
+
         this
     }
 }
 
-pub fn odd_multiple_table(prej: &mut [Jacobian], zr: &mut [Field], a: &Jacobian) {
+pub fn odd_multiples_table(prej: &mut [Jacobian], zr: &mut [Field], a: &Jacobian) {
     debug_assert!(prej.len() == zr.len());
     debug_assert!(!prej.is_empty());
     debug_assert!(!a.is_infinity());
@@ -283,7 +289,7 @@ fn odd_multiples_table_globalz_windowa(
     let mut prej: [Jacobian; ECMULT_TABLE_SIZE_A] = Default::default();
     let mut zr: [Field; ECMULT_TABLE_SIZE_A] = Default::default();
 
-    odd_multiple_table(&mut prej, &mut zr, a);
+    odd_multiples_table(&mut prej, &mut zr, a);
     globalz_set_table_gej(pre, globalz, &prej, &zr);
 }
 
@@ -340,14 +346,14 @@ pub fn ecmult_wnaf(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
         wnaf[i] = 0;
     }
 
-    if s.bits(256, 1) > 0 {
+    if s.bits(255, 1) > 0 {
         s = -s;
         sign = -1;
     }
 
     while bit < wnaf.len() {
         let mut now;
-        let mut word: i32;
+        let mut word;
         if s.bits(bit, 1) == carry as u32 {
             bit += 1;
             continue;
@@ -377,51 +383,40 @@ pub fn ecmult_wnaf(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
         }
         t
     });
-
     last_set_bit + 1
 }
 
 pub fn ecmult_wnaf_const(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
     let mut s = *a;
-    let word = 0;
+    let mut word = 0;
 
-    /*
-     * Note that we cannot handle even numbers by negating them to be
-     * odd, as is done in other implementations, since if or scalars
+    /* Note that we cannot handle even numbers by negating them to be
+     * odd, as is done in other implementations, since if our scalars
      * were specified to have width < 256 for performance reasons,
      * their negations would have width 256 and we'd lose any
      * performance benefit. Instead, we use a technique from Section
      * 4.2 of the Okeya/Tagaki paper, which is to add either 1 (for
      * even) or 2 (for odd) to the number we are encoding, returning a
      * skew value indicating this, and having the caller compensate
-     * after doing the multiplication.
-     * */
+     * after doing the multiplication. */
 
-    /*
-     * Negative numbers will be negated to keep their bit
-     * representation below the maximum width
-     * */
+    /* Negative numbers will be negated to keep their bit
+     * representation below the maximum width */
     let flip = s.is_high();
-    /*
-     * We add 1 to even numbers, 2 to odd ones, noting that negation
-     * filips parity
-     * */
+    /* We add 1 to even numbers, 2 to odd ones, noting that negation
+     * flips parity */
     let bit = flip ^ !s.is_even();
-    /*
-     * We add 1 to even numbers, 2 to odd ones, noting that negation
-     * flips parity
-     * */
+    /* We add 1 to even numbers, 2 to odd ones, noting that negation
+     * flips parity */
     let neg_s = -s;
     let not_neg_one = !neg_s.is_one();
     s.cadd_bit(if bit { 1 } else { 0 }, not_neg_one);
-    /*
-     * If we negative one, flip == 1, s.d[0] == 0, bit == 1, so
+    /* If we had negative one, flip == 1, s.d[0] == 0, bit == 1, so
      * caller expects that we added two to it and flipped it. In fact
      * for -1 these operations are identical. We only flipped, but
-     * since skewing is required (in the sense that the skew must be
+     * since skewing is required (in the sense that the skew must be 1
      * or 2, never zero) and flipping is not, we need to change our
-     * flags to claim that we only skewed.
-     * */
+     * flags to claim that we only skewed. */
     let mut global_sign = if flip { -1 } else { 1 };
     s.cond_neg_assign(Choice::from(flip as u8));
     global_sign *= if not_neg_one { 1 } else { 0 } * 2 - 1;
@@ -435,6 +430,11 @@ pub fn ecmult_wnaf_const(wnaf: &mut [i32], a: &Scalar, w: usize) -> i32 {
         let sign = 2 * (if u_last > 0 { 1 } else { 0 }) - 1;
         u += sign * if even { 1 } else { 0 };
         u_last -= sign * if even { 1 } else { 0 } * (1 << w);
+
+        wnaf[word] = (u_last as i32 * global_sign as i32) as i32;
+        word += 1;
+
+        u_last = u;
     }
     wnaf[word] = u * global_sign as i32;
 
@@ -495,32 +495,27 @@ impl ECMultContext {
         let sc = *scalar;
         let skew_1 = ecmult_wnaf_const(&mut wnaf_1, &sc, WINDOW_A - 1);
 
-        /*
-         * Calculate odd multiple of a. All multiple are brought to
+        /* Calculate odd multiples of a.  All multiples are brought to
          * the same Z 'denominator', which is stored in Z. Due to
-         * secpt256k1 isomorphism we can do all operation protecting
+         * secp256k1' isomorphism we can do all operations pretending
          * that the Z coordinate was 1, use affine addition formulae,
          * and correct the Z coordinate of the result once at the end.
-         * */
+         */
         r.set_ge(a);
         odd_multiples_table_globalz_windowa(&mut pre_a, &mut z, r);
         for i in 0..ECMULT_TABLE_SIZE_A {
             pre_a[i].y.normalize_weak();
         }
 
-        /*
-         * first loop iteration (separated out so we can directly set
+        /* first loop iteration (separated out so we can directly set
          * r, rather than having it start at infinity, get doubled
-         * several times, then have its new value added to it)
-         * */
+         * several times, then have its new value added to it) */
         let i = wnaf_1[WNAF_SIZE];
         debug_assert!(i != 0);
         table_get_ge_const(&mut tmpa, &pre_a, i, WINDOW_A);
         r.set_ge(&tmpa);
 
-        /*
-         * remaining loop iteration
-         * */
+        /* remaining loop iterations */
         for i in (0..WNAF_SIZE).rev() {
             for _ in 0..(WINDOW_A - 1) {
                 let r2 = *r;
@@ -535,30 +530,24 @@ impl ECMultContext {
 
         r.z *= &z;
 
-        /*
-         * Correct for wNAF stew
-         * */
+        /* Correct for wNAF skew */
         let mut correction = *a;
-        let mut correction_i_ster: AffineStorage;
+        let mut correction_1_stor: AffineStorage;
         let a2_stor: AffineStorage;
         let mut tmpj = Jacobian::default();
         tmpj.set_ge(&correction);
         tmpj = tmpj.double_var(None);
         correction.set_gej(&tmpj);
-        correction_i_ster = (*a).into();
+        correction_1_stor = (*a).into();
         a2_stor = correction.into();
 
-        /*
-         * For odd numbers this is 2a (so replace it), for even owns a  (so no-op)
-         * */
-        correction_i_ster.cmov(&a2_stor, skew_1 == 2);
+        /* For odd numbers this is 2a (so replace it), for even ones a (so no-op) */
+        correction_1_stor.cmov(&a2_stor, skew_1 == 2);
 
-        /*
-         * Apply the correction
-         * */
-        correction = correction_i_ster.into();
+        /* Apply the correction */
+        correction = correction_1_stor.into();
         correction = correction.neg();
-        *r = r.add_ge(&correction);
+        *r = r.add_ge(&correction)
     }
 }
 
@@ -567,7 +556,7 @@ impl ECMultGenContext {
         let mut adds = AffineStorage::default();
         *r = self.initial;
 
-        let mut gnb = gn * &self.blind;
+        let mut gnb = gn + &self.blind;
         let mut add = Affine::default();
         add.infinity = false;
 

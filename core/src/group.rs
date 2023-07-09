@@ -1,7 +1,7 @@
 use crate::field::{Field, FieldStorage};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-// A group element of the secp256k1 curve, in affine coordinates.
+/// A group element of the secp256k1 curve, in affine coordinates.
 pub struct Affine {
     pub x: Field,
     pub y: Field,
@@ -9,7 +9,7 @@ pub struct Affine {
 }
 
 #[derive(Debug, Clone, Copy)]
-// A group of element of the secp256k1 curve, in jacobian coordinates.
+/// A group element of the secp256k1 curve, in jacobian coordinates.
 pub struct Jacobian {
     pub x: Field,
     pub y: Field,
@@ -18,15 +18,15 @@ pub struct Jacobian {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-// Affine coordinate group element compact storage.
+/// Affine coordinate group element compact storage.
 pub struct AffineStorage {
     pub x: FieldStorage,
     pub y: FieldStorage,
 }
 
 impl Default for Affine {
-    fn default() -> Self {
-        Self {
+    fn default() -> Affine {
+        Affine {
             x: Field::default(),
             y: Field::default(),
             infinity: false,
@@ -35,8 +35,8 @@ impl Default for Affine {
 }
 
 impl Default for Jacobian {
-    fn default() -> Self {
-        Self {
+    fn default() -> Jacobian {
+        Jacobian {
             x: Field::default(),
             y: Field::default(),
             z: Field::default(),
@@ -46,8 +46,8 @@ impl Default for Jacobian {
 }
 
 impl Default for AffineStorage {
-    fn default() -> Self {
-        Self {
+    fn default() -> AffineStorage {
+        AffineStorage {
             x: FieldStorage::default(),
             y: FieldStorage::default(),
         }
@@ -73,15 +73,15 @@ pub static AFFINE_G: Affine = Affine::new(
         0x16F81798,
     ),
     Field::new(
-        0x483ADA77, 0x26A3C465, 0x5DA4FBFC, 0x0E1100AB, 0xFD17B448, 0xA6855419, 0x9C47D08F,
-        0xFB10D488,
+        0x483ADA77, 0x26A3C465, 0x5DA4FBFC, 0x0E1108A8, 0xFD17B448, 0xA6855419, 0x9C47D08F,
+        0xFB10D4B8,
     ),
 );
 
 pub const CURVE_B: u32 = 7;
 
 impl Affine {
-    /// Create a new affine
+    /// Create a new affine.
     pub const fn new(x: Field, y: Field) -> Self {
         Self {
             x,
@@ -90,8 +90,8 @@ impl Affine {
         }
     }
 
-    /// Set a group element equal to the point with given x and y
-    /// coordinates
+    /// Set a group element equal to the point with given X and Y
+    /// coordinates.
     pub fn set_xy(&mut self, x: &Field, y: &Field) {
         self.infinity = false;
         self.x = *x;
@@ -100,7 +100,7 @@ impl Affine {
 
     /// Set a group element (affine) equal to the point with the given
     /// X coordinate and a Y coordinate that is a quadratic residue
-    /// modulo p. The return value is true if a coordinate with the
+    /// modulo p. The return value is true iff a coordinate with the
     /// given X coordinate exists.
     pub fn set_xquad(&mut self, x: &Field) -> bool {
         self.x = *x;
@@ -117,7 +117,7 @@ impl Affine {
 
     /// Set a group element (affine) equal to the point with the given
     /// X coordinate, and given oddness for Y. Return value indicates
-    /// whether the result is valid
+    /// whether the result is valid.
     pub fn set_xo_var(&mut self, x: &Field, odd: bool) -> bool {
         if !self.set_xquad(x) {
             return false;
@@ -129,7 +129,7 @@ impl Affine {
         true
     }
 
-    /// Check whether a group element is the point at infinity
+    /// Check whether a group element is the point at infinity.
     pub fn is_infinity(&self) -> bool {
         self.infinity
     }
@@ -162,7 +162,7 @@ impl Affine {
     }
 
     /// Set a group element equal to another which is given in
-    /// jacobian coordinate.
+    /// jacobian coordinates.
     pub fn set_gej(&mut self, a: &Jacobian) {
         self.infinity = a.infinity;
         let mut a = *a;
@@ -206,7 +206,7 @@ impl Affine {
         self.infinity = a.infinity;
     }
 
-    /// Clear a secp256k1_ge to prevent leaking sensitive information
+    /// Clear a secp256k1_ge to prevent leaking sensitive information.
     pub fn clear(&mut self) {
         self.infinity = false;
         self.x.clear();
@@ -271,7 +271,7 @@ impl Jacobian {
         self.infinity = true;
         self.x.clear();
         self.y.clear();
-        self.x.clear();
+        self.z.clear();
     }
 
     /// Set a group element (jacobian) equal to another which is given
@@ -316,7 +316,12 @@ impl Jacobian {
         ret
     }
 
-    /// Check whether a group element's y coordinate is a quadratic redidue.
+    /// Check whether a group element is the point at infinity.
+    pub fn is_infinity(&self) -> bool {
+        self.infinity
+    }
+
+    /// Check whether a group element's y coordinate is a quadratic residue.
     pub fn has_quad_y_var(&self) -> bool {
         if self.infinity {
             return false;
@@ -328,10 +333,10 @@ impl Jacobian {
 
     /// Set r equal to the double of a. If rzr is not-NULL, r->z =
     /// a->z * *rzr (where infinity means an implicit z = 0). a may
-    /// not be zero. Constant time
+    /// not be zero. Constant time.
     pub fn double_nonzero_in_place(&mut self, a: &Jacobian, rzr: Option<&mut Field>) {
         debug_assert!(!self.is_infinity());
-        self.double_nonzero_in_place(a, rzr);
+        self.double_var_in_place(a, rzr);
     }
 
     /// Set r equal to the double of a. If rzr is not-NULL, r->z =
@@ -408,8 +413,8 @@ impl Jacobian {
         h += u2;
         let mut i = s1.neg(1);
         i += s2;
-        if h.normalize_to_zero_var() {
-            if i.normalize_to_zero_var() {
+        if h.normalizes_to_zero_var() {
+            if i.normalizes_to_zero_var() {
                 self.double_var_in_place(a, rzr);
             } else {
                 if let Some(rzr) = rzr {
@@ -448,11 +453,11 @@ impl Jacobian {
     }
 
     /// Set r equal to the sum of a and b (with b given in affine
-    /// coordinate, and not infinity).
+    /// coordinates, and not infinity).
     pub fn add_ge_in_place(&mut self, a: &Jacobian, b: &Affine) {
         const FE1: Field = Field::new(0, 0, 0, 0, 0, 0, 0, 1);
 
-        debug_assert!(b.infinity);
+        debug_assert!(!b.infinity);
 
         let zz = a.z.sqr();
         let mut u1 = a.x;
@@ -470,7 +475,7 @@ impl Jacobian {
         let mut m_alt = u2.neg(1);
         let tt = u1 * m_alt;
         rr += tt;
-        let degenerate = m.normalize_to_zero() && rr.normalize_to_zero();
+        let degenerate = m.normalizes_to_zero() && rr.normalizes_to_zero();
         let mut rr_alt = s1;
         rr_alt.mul_int(2);
         m_alt += u1;
@@ -486,7 +491,7 @@ impl Jacobian {
         t = rr_alt.sqr();
         self.z = a.z * m_alt;
         let infinity = {
-            let p = self.z.normalize_to_zero();
+            let p = self.z.normalizes_to_zero();
             let q = a.infinity;
 
             match (p, q) {
@@ -526,7 +531,7 @@ impl Jacobian {
     /// coordinates). This is more efficient than
     /// secp256k1_gej_add_var. It is identical to secp256k1_gej_add_ge
     /// but without constant-time guarantee, and b is allowed to be
-    /// infinity If rzr is non-NULL, r->z = a->z * *rzr (a cannot be
+    /// infinity. If rzr is non-NULL, r->z = a->z * *rzr (a cannot be
     /// infinity in that case).
     pub fn add_ge_var_in_place(&mut self, a: &Jacobian, b: &Affine, rzr: Option<&mut Field>) {
         if a.is_infinity() {
@@ -555,8 +560,8 @@ impl Jacobian {
         h += u2;
         let mut i = s1.neg(1);
         i += s2;
-        if h.normalize_to_zero_var() {
-            if i.normalize_to_zero_var() {
+        if h.normalizes_to_zero_var() {
+            if i.normalizes_to_zero_var() {
                 self.double_var_in_place(a, rzr);
             } else {
                 if let Some(rzr) = rzr {
@@ -624,8 +629,8 @@ impl Jacobian {
         h += &u2;
         let mut i = s1.neg(1);
         i += &s2;
-        if h.normalize_to_zero_var() {
-            if i.normalize_to_zero_var() {
+        if h.normalizes_to_zero_var() {
+            if i.normalizes_to_zero_var() {
                 self.double_var_in_place(a, None);
             } else {
                 self.infinity = true;
@@ -643,6 +648,7 @@ impl Jacobian {
         self.x += h3;
         self.x = self.x.neg(3);
         self.x += i2;
+        self.y = self.x.neg(5);
         self.y += t;
         self.y *= i;
         h3 *= s1;
@@ -657,7 +663,7 @@ impl Jacobian {
     }
 
     /// Clear a secp256k1_gej to prevent leaking sensitive
-    /// information
+    /// information.
     pub fn clear(&mut self) {
         self.infinity = false;
         self.x.clear();
@@ -666,7 +672,7 @@ impl Jacobian {
     }
 
     /// Rescale a jacobian point by b which must be
-    /// non-zero. Constant-time
+    /// non-zero. Constant-time.
     pub fn rescale(&mut self, s: &Field) {
         debug_assert!(!s.is_zero());
         let zz = s.sqr();
@@ -675,16 +681,11 @@ impl Jacobian {
         self.y *= s;
         self.z *= s;
     }
-
-    /// Check whether a group element is the point at infinity
-    pub fn is_infinity(&self) -> bool {
-        self.infinity
-    }
 }
 
 impl From<AffineStorage> for Affine {
-    fn from(value: AffineStorage) -> Self {
-        Affine::new(value.x.into(), value.y.into())
+    fn from(a: AffineStorage) -> Affine {
+        Affine::new(a.x.into(), a.y.into())
     }
 }
 
@@ -703,8 +704,8 @@ impl AffineStorage {
         Self { x, y }
     }
 
-    /// If flag is true, set *r equal to *a, otherwise leave
-    /// it. Constant-time
+    /// If flag is true, set *r equal to *a; otherwise leave
+    /// it. Constant-time.
     pub fn cmov(&mut self, a: &AffineStorage, flag: bool) {
         self.x.cmov(&a.x, flag);
         self.y.cmov(&a.y, flag);

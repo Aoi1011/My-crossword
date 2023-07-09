@@ -1,0 +1,9 @@
+[package]
+name = "libsecp256k1-gen-ecmult"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsecp256k1-core = { version = "0.1.0", path = "../../core" }
