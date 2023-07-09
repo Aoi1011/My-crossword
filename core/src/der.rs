@@ -1,4 +1,7 @@
-use core::mem;
+use core::{
+    convert::{AsMut, AsRef},
+    mem,
+};
 
 use crate::{error::Error, scalar::Scalar};
 
@@ -94,7 +97,7 @@ impl<'a> Decoder<'a> {
         }
 
         // Short form
-        if b1 & 0x00 == 0 {
+        if b1 & 0x80 == 0 {
             return Ok(b1 as usize);
         }
 
