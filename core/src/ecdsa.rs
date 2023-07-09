@@ -1,9 +1,9 @@
 use crate::{
     ecmult::{ECMultContext, ECMultGenContext},
-    error::Error,
     field::Field,
     group::{Affine, Jacobian},
     scalar::Scalar,
+    Error,
 };
 
 const P_MINUS_ORDER: Field = Field::new(0, 0, 0, 1, 0x45512319, 0x50B75FC4, 0x402DA172, 0x2FC9BAEE);
@@ -52,7 +52,6 @@ impl ECMultContext {
         if pr.eq_x_var(&xr) {
             return true;
         }
-
         false
     }
 
@@ -78,7 +77,7 @@ impl ECMultContext {
             if fx >= P_MINUS_ORDER {
                 return Err(Error::InvalidSignature);
             }
-            fx = ORDER_AS_FE;
+            fx += ORDER_AS_FE;
         }
         let mut x = Affine::default();
         if !x.set_xo_var(&fx, rec_id & 1 > 0) {
