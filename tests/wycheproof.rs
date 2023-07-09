@@ -1,4 +1,4 @@
-use lib::{PublicKey, Message, Signature, verify};
+use lib::{verify, Message, PublicKey, Signature};
 use serde::Deserialize;
 use sha2::Digest;
 use std::collections::HashMap;
@@ -75,10 +75,8 @@ fn test_unit(test: &TestUnit, key: &PublicKey) -> Result<(), TestError> {
     let sig_raw = hex::decode(&test.sig).unwrap();
 
     let msg_hashed_raw = sha2::Sha256::digest(&msg_raw);
-    let msg = Message::parse_slice(&msg_hashed_raw)
-        .map_err(|_| TestError::MessageDecoding)?;
-    let sig =
-        Signature::parse_der(&sig_raw).map_err(|_| TestError::SignatureDecoding)?;
+    let msg = Message::parse_slice(&msg_hashed_raw).map_err(|_| TestError::MessageDecoding)?;
+    let sig = Signature::parse_der(&sig_raw).map_err(|_| TestError::SignatureDecoding)?;
 
     if verify(&msg, &sig, &key) {
         Ok(())
