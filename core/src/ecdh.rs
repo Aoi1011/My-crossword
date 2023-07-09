@@ -3,7 +3,7 @@ use crate::{
     group::{Affine, Jacobian},
     scalar::Scalar,
 };
-use digest::{generic_array::GenericArray, Digest, FixedOutputReset, Update};
+use digest::{generic_array::GenericArray, Digest, FixedOutputReset};
 
 impl ECMultContext {
     pub fn ecdh_raw<D: Digest + Default + FixedOutputReset>(
@@ -30,8 +30,8 @@ impl ECMultContext {
         let x = pt.x.b32();
         let y = 0x02 | (if pt.y.is_odd() { 1 } else { 0 });
 
-        Update::update(&mut digest, &[y]);
-        Update::update(&mut digest, &x);
+        Digest::update(&mut digest, &[y]);
+        Digest::update(&mut digest, &x);
         Some(digest.finalize_reset())
     }
 }
