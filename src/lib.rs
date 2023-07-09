@@ -1,7 +1,19 @@
+use std::fmt::{self, Write};
+
 use arrayref::{array_mut_ref, array_ref};
-use digest::{generic_array::GenericArray, Digest};
-use libsecp256k1_core::curve::{ECMultGenContext, Field, Jacobian, Scalar};
+use digest::{generic_array::GenericArray, Digest, FixedOutputReset};
 pub use libsecp256k1_core::*;
+use libsecp256k1_core::{
+    curve::{ECMultGenContext, Field, Jacobian, Scalar},
+    util::{Decoder, SignatureArray},
+};
+use rand::Rng;
+use serde::{de, Deserialize, Deserializer, Serialize};
+
+#[cfg(feature = "hmac")]
+use hmac_drbg::HmacDRBG;
+#[cfg(feature = "hmac")]
+use sha2::Sha256;
 
 use crate::curve::{Affine, ECMultContext};
 
@@ -34,7 +46,7 @@ pub struct Signature {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 /// Tag used for public key  recovery from signature
-pub struct Recoveryid(u8);
+pub struct RecoveryId(u8);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Hashed message input to an ECDSA signature.
@@ -205,7 +217,11 @@ impl PublicKey {
         ret
     }
 
-    pub fn tweak_add_assign_with_context(&mut self, tweak: &SecretKey, context: &ECMultContext) -> Result<(), Error> {
+    pub fn tweak_add_assign_with_context(
+        &mut self,
+        tweak: &SecretKey,
+        context: &ECMultContext,
+    ) -> Result<(), Error> {
         let mut r = Jacobian::default();
         let a = Jacobian::from_ge(&self.0);
         let one = Scalar::from_int(1);
@@ -224,7 +240,11 @@ impl PublicKey {
         self.tweak_add_assign_with_context(tweak, &ECMULT_CONTEXT)
     }
 
-    pub fn tweak_mul_assign_with_context(&mut self, tweak: &SecretKey, context: &ECMultContext) -> Result<(), Error> {
+    pub fn tweak_mul_assign_with_context(
+        &mut self,
+        tweak: &SecretKey,
+        context: &ECMultContext,
+    ) -> Result<(), Error> {
         if tweak.0.is_zero() {
             return Err(Error::TweakOutofRange);
         }
@@ -257,5 +277,581 @@ impl PublicKey {
 
         let q = Affine::from_gej(&qj);
         Ok(PublicKey(q))
+    }
+}
+
+impl Into<Affine> for PublicKey {
+    fn into(self) -> Affine {
+        self.0
+    }
+}
+
+impl TryFrom<Affine> for PublicKey {
+    type Error = Error;
+
+    fn try_from(value: Affine) -> Result<Self, Self::Error> {
+        if value.is_infinity() || !value.is_valid_var() {
+            Err(Error::InvalidAffine)
+        } else {
+            Ok(PublicKey(value))
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&base64::encode(&self.serialize()[..]))
+        } else {
+            serializer.serialize_bytes(&self.serialize())
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+struct PublicKeyStrVisitor;
+
+#[cfg(feature = "std")]
+impl<'de> de::Visitor<'de> for PublicKeyStrVisitor {
+    type Value = PublicKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter
+            .write_str("a bytestring of either 33 (compressed), 64 (raw), or 65 bytes in length")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        let value: &[u8] = &base64::decode(value).map_err(|e| E::custom(e))?;
+        let key_format = match value.len() {
+            33 => PublicKeyFormat::Compressed,
+            64 => PublicKeyFormat::Raw,
+            65 => PublicKeyFormat::Full,
+            _ => return Err(E::custom(Error::InvalidInputLength)),
+        };
+        PublicKey::parse_slice(value, Some(key_format))
+            .map_err(|_e| E::custom(Error::InvalidPublicKey))
+    }
+}
+
+#[cfg(feature = "std")]
+struct PublicKeyBytesVisitor;
+
+#[cfg(feature = "std")]
+impl<'de> de::Visitor<'de> for PublicKeyBytesVisitor {
+    type Value = PublicKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str(
+            "a byte slice that is either 33 (compressed), 64 (raw), or 65 bytes in length",
+        )
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        PublicKey::parse_slice(v, None).map_err(|_e| E::custom(Error::InvalidPublicKey))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<'de> Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_str(PublicKeyStrVisitor)
+        } else {
+            deserializer.deserialize_bytes(PublicKeyBytesVisitor)
+        }
+    }
+}
+
+impl SecretKey {
+    pub fn parse(p: &[u8; util::SECRET_KEY_SIZE]) -> Result<SecretKey, Error> {
+        let mut elem = Scalar::default();
+        if !bool::from(elem.set_b32(p)) {
+            Self::try_from(elem)
+        } else {
+            Err(Error::InvalidSecretKey)
+        }
+    }
+
+    pub fn parse_slice(p: &[u8]) -> Result<SecretKey, Error> {
+        if p.len() != util::SECRET_KEY_SIZE {
+            return Err(Error::InvalidInputLength);
+        }
+
+        let mut a = [0; 32];
+        a.copy_from_slice(p);
+        Self::parse(&a)
+    }
+
+    pub fn random<R: Rng>(rng: &mut R) -> Self {
+        loop {
+            let mut ret = [0u8; util::SECRET_KEY_SIZE];
+            rng.fill_bytes(&mut ret);
+
+            if let Ok(key) = Self::parse(&ret) {
+                return key;
+            }
+        }
+    }
+
+    pub fn serialize(&self) -> [u8; util::SECRET_KEY_SIZE] {
+        self.0.b32()
+    }
+
+    pub fn tweak_add_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        let v = self.0 + tweak.0;
+        if v.is_zero() {
+            return Err(Error::TweakOutofRange);
+        }
+        self.0 = v;
+        Ok(())
+    }
+
+    pub fn tweak_mul_assign(&mut self, tweak: &SecretKey) -> Result<(), Error> {
+        if tweak.0.is_zero() {
+            return Err(Error::TweakOutofRange);
+        }
+
+        self.0 *= &tweak.0;
+        Ok(())
+    }
+
+    pub fn inv(&self) -> Self {
+        SecretKey(self.0.inv())
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl Default for SecretKey {
+    fn default() -> Self {
+        let mut elem = Scalar::default();
+        let overflowed = bool::from(elem.set_b32(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+        ]));
+        debug_assert!(!overflowed);
+        debug_assert!(!elem.is_zero());
+        SecretKey(elem)
+    }
+}
+
+impl Into<Scalar> for SecretKey {
+    fn into(self) -> Scalar {
+        self.0
+    }
+}
+
+impl TryFrom<Scalar> for SecretKey {
+    type Error = Error;
+
+    fn try_from(value: Scalar) -> Result<Self, Self::Error> {
+        if value.is_zero() {
+            Err(Error::InvalidSecretKey)
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl core::fmt::LowerHex for SecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let scalar = self.0;
+
+        write!(f, "{:x}", scalar)
+    }
+}
+
+impl Signature {
+    /// Parse an possibly overflowing signature.
+    ///
+    /// A SECP256K1 signature is usually required to be within 0 and curve
+    /// order. This function, however, allows signatures larger than curve order
+    /// by taking the signature and minus curve order.
+    ///
+    /// Note that while this function is technically safe, it is not-standard,
+    /// meaning you will have compatibility issues if you also use other
+    /// SECP256KQ libralies. It's not recommended to use this function. Please
+    /// use `parse_standard` instead.
+    pub fn parse_overflowing(p: &[u8; util::SIGNATURE_SIZE]) -> Self {
+        let mut r = Scalar::default();
+        let mut s = Scalar::default();
+
+        // Okay ofr signature to overflow
+        let _ = r.set_b32(array_ref![p, 0, 32]);
+        let _ = s.set_b32(array_ref![p, 32, 32]);
+
+        Signature { r, s }
+    }
+
+    /// Parse a standard SECP256K1 signature. The signature is required to be
+    /// within 0 and curve order. Returns error if it overflows
+    pub fn parse_standard(p: &[u8; util::SIGNATURE_SIZE]) -> Result<Signature, Error> {
+        let mut r = Scalar::default();
+        let mut s = Scalar::default();
+
+        // It's okay for the signature to overflow here. It's checked below.
+        let overflowed_r = r.set_b32(array_ref![p, 0, 32]);
+        let overflowed_s = s.set_b32(array_ref![p, 32, 32]);
+
+        if bool::from(overflowed_r | overflowed_s) {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(Signature { r, s })
+    }
+
+    /// Parse a possibly overflowing signature slice, See also
+    /// `parse_overflowing`
+    ///
+    /// It's not recommended to use this function. Please use
+    /// `parse_standard_slice` instead.
+    pub fn parse_overflowing_slice(p: &[u8]) -> Result<Signature, Error> {
+        if p.len() != util::SIGNATURE_SIZE {
+            return Err(Error::InvalidInputLength);
+        }
+
+        let mut a = [0; util::SIGNATURE_SIZE];
+        a.copy_from_slice(p);
+        Ok(Self::parse_overflowing(&a))
+    }
+
+    /// Parse a standard signature slice. See also `parse_standard`
+    pub fn parse_standard_slice(p: &[u8]) -> Result<Signature, Error> {
+        if p.len() != util::SIGNATURE_SIZE {
+            return Err(Error::InvalidInputLength);
+        }
+
+        let mut a = [0; util::SIGNATURE_SIZE];
+        a.copy_from_slice(p);
+        Ok(Self::parse_standard(&a)?)
+    }
+
+    /// Parse a DER.encoded byte slice a signature
+    pub fn parse_der(p: &[u8]) -> Result<Signature, Error> {
+        let mut decoder = Decoder::new(p);
+
+        decoder.read_constructed_sequence()?;
+        let rlen = decoder.read_len()?;
+
+        if rlen != decoder.remaining_len() {
+            return Err(Error::InvalidSignature);
+        }
+
+        let r = decoder.read_integer()?;
+        let s = decoder.read_integer()?;
+
+        if decoder.remaining_len() != 0 {
+            return Err(Error::InvalidSignature);
+        }
+
+        Ok(Signature { r, s })
+    }
+
+    /// Converts a "lax DER".encoded byte slice to a signature. This is basically
+    /// only useful for validating signatures in the Bitcoin blockchain from before
+    /// 2016. It should never be used in new applications This library does not
+    /// support serializing to this "format"
+    pub fn parse_der_lax(p: &[u8]) -> Result<Signature, Error> {
+        let mut decoder = Decoder::new(p);
+
+        decoder.read_constructed_sequence()?;
+        decoder.read_seq_len_lax()?;
+
+        let r = decoder.read_integer_lax()?;
+        let s = decoder.read_integer_lax()?;
+
+        Ok(Signature { r, s })
+    }
+
+    /// Normalizes a signature to a "low S" form. In ECDSA, signatures are
+    /// of the form (r, s) where r and s are numbers lying in some finite
+    /// field. The verification equation will pass for (r, s) iff it passes
+    /// for (r, -s), so it is possible to ``modify'' signatures in transit
+    /// by flipping the sign of s. This does not constitute a forgery since
+    /// the signed message still cannot be changed, but for some applications,
+    /// changing even the signature itself can be a problem. Such applications
+    /// require a "strong signature". It is believed that ECDSA is a strong
+    /// signature except for this ambiguity in the sign of s, so to accommodate
+    /// these applications libsecp256k1 will only accept signatures for which
+    /// s is in the lower half of the field range. This eliminates the
+    /// ambiguity.
+    ///
+    /// However, for some systems, signatures with high s-values are considered
+    /// valid. (For example, parsing the historic Bitcoin blockchain requires
+    /// this.) For these applications we provide this normalization function,
+    /// which ensures that the s value lies in the lower half of its range.
+    pub fn normalize_s(&mut self) {
+        if self.s.is_high() {
+            self.s = -self.s;
+        }
+    }
+
+    /// Serialize a signature to a standard byte representation. This is the
+    /// reverse of `parse_standard`
+    pub fn serialize(&self) -> [u8; util::SIGNATURE_SIZE] {
+        let mut ret = [0u8; 64];
+        self.r.fill_b32(array_mut_ref![ret, 0, 32]);
+        self.s.fill_b32(array_mut_ref![ret, 32, 32]);
+        ret
+    }
+
+    /// Serialize a signature to a DER encoding. This is the reverse of
+    /// `parse_der`.
+    pub fn serialize_der(&self) -> SignatureArray {
+        fn fill_scalar_with_leading_zero(scalar: &Scalar) -> [u8; 33] {
+            let mut ret = [0u8; 33];
+            scalar.fill_b32(array_mut_ref![ret, 1, 32]);
+            ret
+        }
+
+        let r_full = fill_scalar_with_leading_zero(&self.r);
+        let s_full = fill_scalar_with_leading_zero(&self.s);
+
+        fn integer_slice(full: &[u8; 33]) -> &[u8] {
+            let mut len = 33;
+            while len > 1 && full[full.len() - len] == 0 && full[full.len() - len + 1] < 0x80 {
+                len -= 1;
+            }
+            &full[(full.len() - len)..]
+        }
+
+        let r = integer_slice(&r_full);
+        let s = integer_slice(&s_full);
+
+        let mut ret = SignatureArray::new(6 + r.len() + s.len());
+        {
+            let l = ret.as_mut();
+            l[0] = 0x30;
+            l[1] = 4 + r.len() as u8 + s.len() as u8;
+            l[2] = 0x02;
+            l[3] = r.len() as u8;
+            l[4..(4 + r.len())].copy_from_slice(r);
+            l[4 + r.len()] = 0x02;
+            l[5 + r.len()] = s.len() as u8;
+            l[(6 + r.len())..(6 + r.len() + s.len())].copy_from_slice(s);
+        }
+
+        ret
+    }
+}
+
+impl Message {
+    pub fn parse(p: &[u8; util::MESSAGE_SIZE]) -> Message {
+        let mut m = Scalar::default();
+
+        // Okay for message to overflow
+        let _ = m.set_b32(p);
+
+        Message(m)
+    }
+
+    pub fn parse_slice(p: &[u8]) -> Result<Message, Error> {
+        if p.len() != util::MESSAGE_SIZE {
+            return Err(Error::InvalidInputLength);
+        }
+
+        let mut a = [0; util::MESSAGE_SIZE];
+        a.copy_from_slice(p);
+        Ok(Self::parse(&a))
+    }
+
+    pub fn serialize(&self) -> [u8; util::MESSAGE_SIZE] {
+        self.0.b32()
+    }
+}
+
+impl RecoveryId {
+    /// Parse recovery ID starting with 0.
+    pub fn parse(p: u8) -> Result<RecoveryId, Error> {
+        if p < 4 {
+            Ok(RecoveryId(p))
+        } else {
+            Err(Error::InvalidRecoveryId)
+        }
+    }
+
+    /// Parse recovery ID as Ethereum RPC format, starting with 27.
+    pub fn parse_rpc(p: u8) -> Result<RecoveryId, Error> {
+        if p >= 27 && p < 27 + 4 {
+            RecoveryId::parse(p - 27)
+        } else {
+            Err(Error::InvalidRecoveryId)
+        }
+    }
+
+    pub fn serialize(&self) -> u8 {
+        self.0
+    }
+}
+
+impl Into<u8> for RecoveryId {
+    fn into(self) -> u8 {
+        self.0
+    }
+}
+
+impl Into<i32> for RecoveryId {
+    fn into(self) -> i32 {
+        self.0 as i32
+    }
+}
+
+impl<D: Digest + Default + FixedOutputReset> SharedSecret<D> {
+    pub fn new_with_context(
+        pubkey: &PublicKey,
+        seckey: &SecretKey,
+        context: &ECMultContext,
+    ) -> Result<SharedSecret<D>, Error> {
+        let inner = match context.ecdh_raw::<D>(&pubkey.0, &seckey.0) {
+            Some(val) => val,
+            None => return Err(Error::InvalidSecretKey),
+        };
+
+        Ok(SharedSecret(inner))
+    }
+
+    #[cfg(any(feature = "static-context", feature = "lazy-static-context"))]
+    pub fn new(pubkey: &PublicKey, seckey: &SecretKey) -> Result<SharedSecret<D>, Error> {
+        Self::new_with_context(pubkey, seckey, &ECMULT_CONTEXT)
+    }
+}
+
+impl<D: Digest> AsRef<[u8]> for SharedSecret<D> {
+    fn as_ref(&self) -> &[u8] {
+        &self.0.as_ref()
+    }
+}
+
+/// Check signature is a valid message signed by public key, using the given context.
+pub fn verify_with_context(
+    message: &Message,
+    signature: &Signature,
+    pubkey: &PublicKey,
+    context: &ECMultContext,
+) -> bool {
+    context.verify_raw(&signature.r, &signature.s, &pubkey.0, &message.0)
+}
+
+#[cfg(any(feature = "static-context", feature = "lazy-static-context"))]
+/// Check signature is a valid message signed by public key.
+pub fn verify(message: &Message, signature: &Signature, pubkey: &PublicKey) -> bool {
+    verify_with_context(message, signature, pubkey, &ECMULT_CONTEXT)
+}
+
+/// Recover public key from a signed message, using the given context.
+pub fn recover_with_context(
+    message: &Message,
+    signature: &Signature,
+    recovery_id: &RecoveryId,
+    context: &ECMultContext,
+) -> Result<PublicKey, Error> {
+    context
+        .recover_raw(&signature.r, &signature.s, recovery_id.0, &message.0)
+        .map(PublicKey)
+}
+
+#[cfg(any(feature = "static-context", feature = "lazy-static-context"))]
+/// Recover public key from a signed message.
+pub fn recover(
+    message: &Message,
+    signature: &Signature,
+    recovery_id: &RecoveryId,
+) -> Result<PublicKey, Error> {
+    recover_with_context(message, signature, recovery_id, &ECMULT_CONTEXT)
+}
+
+#[cfg(feature = "hmac")]
+/// Sign a message using the secret key, with the given context.
+pub fn sign_with_context(
+    message: &Message,
+    seckey: &SecretKey,
+    context: &ECMultGenContext,
+) -> (Signature, RecoveryId) {
+    use typenum::U32;
+
+    let seckey_b32 = seckey.0.b32();
+    let message_b32 = message.0.b32();
+
+    let mut drbg = HmacDRBG::<Sha256>::new(&seckey_b32, &message_b32, &[]);
+    let mut nonce = Scalar::default();
+    let mut overflow;
+
+    let result;
+    loop {
+        let generated = drbg.generate::<U32>(None);
+        overflow = bool::from(nonce.set_b32(array_ref![generated, 0, 32]));
+
+        if !overflow && !nonce.is_zero() {
+            if let Ok(val) = context.sign_raw(&seckey.0, &message.0, &nonce) {
+                result = val;
+                break;
+            }
+        }
+    }
+
+    #[allow(unused_assignments)]
+    {
+        nonce = Scalar::default();
+    }
+    let (sigr, sigs, recid) = result;
+
+    (Signature { r: sigr, s: sigs }, RecoveryId(recid))
+}
+
+#[cfg(all(
+    feature = "hmac",
+    any(feature = "static-context", feature = "lazy-static-context")
+))]
+/// Sign a message using the secret key
+pub fn sign(message: &Message, seckey: &SecretKey) -> (Signature, RecoveryId) {
+    sign_with_context(message, seckey, &ECMULT_GEN_CONTEXT)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SecretKey;
+    use hex_literal::hex;
+
+    #[test]
+    fn secret_key_inverse_is_sane() {
+        let sk = SecretKey::parse(&[1; 32]).unwrap();
+        let inv = sk.inv();
+        let invinv = inv.inv();
+        assert_eq!(sk, invinv);
+        // Check that the inverse of `[1; 32]` is same as rust-secp256k1
+        assert_eq!(
+            inv,
+            SecretKey::parse(&hex!(
+                "1536f1d756d1abf83aaf173bc5ee3fc487c93010f18624d80bd6d4038fadd59e"
+            ))
+            .unwrap()
+        )
+    }
+
+    #[test]
+    fn secret_key_clear_is_correct() {
+        let mut sk = SecretKey::parse(&[1; 32]).unwrap();
+        sk.clear();
+        assert_eq!(sk.is_zero(), true);
     }
 }
