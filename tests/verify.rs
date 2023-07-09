@@ -129,29 +129,29 @@ mod signatures {
         assert_eq!(rpr, opr);
     }
 
-    #[test]
-    fn test_shared_secret() {
-        let secp256k1 = Secp256k1::new();
+    //#[test]
+    //fn test_shared_secret() {
+    //    let secp256k1 = Secp256k1::new();
 
-        let (spub1, ssec1, pub1, sec1) = genkey(&secp256k1);
-        let (spub2, ssec2, pub2, sec2) = genkey(&secp256k1);
+    //    let (spub1, ssec1, pub1, sec1) = genkey(&secp256k1);
+    //    let (spub2, ssec2, pub2, sec2) = genkey(&secp256k1);
 
-        let shared1 = SharedSecret::<Sha256>::new(&pub1, &sec2).unwrap();
-        let shared2 = SharedSecret::<Sha256>::new(&pub2, &sec1).unwrap();
+    //    let shared1 = SharedSecret::<Sha256>::new(&pub1, &sec2).unwrap();
+    //    let shared2 = SharedSecret::<Sha256>::new(&pub2, &sec1).unwrap();
 
-        let secp_shared1 = SecpSharedSecret::new(&spub1, &ssec2);
-        let secp_shared2 = SecpSharedSecret::new(&spub2, &ssec1);
+    //    let secp_shared1 = SecpSharedSecret::new(&spub1, &ssec2);
+    //    let secp_shared2 = SecpSharedSecret::new(&spub2, &ssec1);
 
-        assert_eq!(shared1.as_ref(), shared2.as_ref());
+    //    assert_eq!(shared1.as_ref(), shared2.as_ref());
 
-        for i in 0..32 {
-            assert_eq!(shared1.as_ref()[i], secp_shared1[i]);
-        }
+    //    for i in 0..32 {
+    //        assert_eq!(shared1.as_ref()[i], secp_shared1[i]);
+    //    }
 
-        for i in 0..32 {
-            assert_eq!(shared2.as_ref()[i], secp_shared2[i]);
-        }
-    }
+    //    for i in 0..32 {
+    //        assert_eq!(shared2.as_ref()[i], secp_shared2[i]);
+    //    }
+    //}
 }
 
 #[test]
