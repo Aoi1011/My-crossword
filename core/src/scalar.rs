@@ -1,10 +1,9 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
-
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg};
 use crunchy::unroll;
 use subtle::Choice;
 
 const SECP256K1_N: [u32; 8] = [
-    0x00364141, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+    0xD0364141, 0xBFD25E8C, 0xAF48A03B, 0xBAAEDCE6, 0xFFFFFFFE, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
 ];
 
 const SECP256K1_N_C_0: u32 = !SECP256K1_N[0] + 1;
@@ -71,10 +70,9 @@ impl Scalar {
     fn check_overflow(&self) -> Choice {
         let mut yes: Choice = 0.into();
         let mut no: Choice = 0.into();
-
-        no |= Choice::from((self.0[7] < SECP256K1_N[7]) as u8);
-        no |= Choice::from((self.0[6] < SECP256K1_N[6]) as u8);
-        no |= Choice::from((self.0[5] < SECP256K1_N[5]) as u8);
+        no |= Choice::from((self.0[7] < SECP256K1_N[7]) as u8); /* No need for a > check. */
+        no |= Choice::from((self.0[6] < SECP256K1_N[6]) as u8); /* No need for a > check. */
+        no |= Choice::from((self.0[5] < SECP256K1_N[5]) as u8); /* No need for a > check. */
         no |= Choice::from((self.0[4] < SECP256K1_N[4]) as u8);
         yes |= Choice::from((self.0[4] > SECP256K1_N[4]) as u8) & !no;
         no |= Choice::from((self.0[3] < SECP256K1_N[3]) as u8) & !yes;
@@ -242,7 +240,7 @@ impl Scalar {
         bin[31] = (self.0[0]) as u8;
     }
 
-    /// Check whether a scalar equals zero
+    /// Check whether a scalar equals zero.
     pub fn is_zero(&self) -> bool {
         (self.0[0]
             | self.0[1]
@@ -274,18 +272,17 @@ impl Scalar {
         let mut yes: Choice = 0.into();
         let mut no: Choice = 0.into();
         no |= Choice::from((self.0[7] < SECP256K1_N_H_7) as u8);
-        yes |= Choice::from((self.0[7] < SECP256K1_N_H_7) as u8) & !no;
-        no |= Choice::from((self.0[6] < SECP256K1_N_H_6) as u8) & !yes;
-        no |= Choice::from((self.0[5] < SECP256K1_N_H_5) as u8) & !yes;
-        no |= Choice::from((self.0[4] < SECP256K1_N_H_4) as u8) & !yes;
+        yes |= Choice::from((self.0[7] > SECP256K1_N_H_7) as u8) & !no;
+        no |= Choice::from((self.0[6] < SECP256K1_N_H_6) as u8) & !yes; /* No need for a > check. */
+        no |= Choice::from((self.0[5] < SECP256K1_N_H_5) as u8) & !yes; /* No need for a > check. */
+        no |= Choice::from((self.0[4] < SECP256K1_N_H_4) as u8) & !yes; /* No need for a > check. */
         no |= Choice::from((self.0[3] < SECP256K1_N_H_3) as u8) & !yes;
         yes |= Choice::from((self.0[3] > SECP256K1_N_H_3) as u8) & !no;
-        no |= Choice::from((self.0[2] < SECP256K1_N_C_2) as u8) & !yes;
+        no |= Choice::from((self.0[2] < SECP256K1_N_H_2) as u8) & !yes;
         yes |= Choice::from((self.0[2] > SECP256K1_N_H_2) as u8) & !no;
-        no |= Choice::from((self.0[1] < SECP256K1_N_C_1) as u8) & !yes;
+        no |= Choice::from((self.0[1] < SECP256K1_N_H_1) as u8) & !yes;
         yes |= Choice::from((self.0[1] > SECP256K1_N_H_1) as u8) & !no;
-        yes |= Choice::from((self.0[0] > SECP256K1_N_H_0) as u8) & !no;
-
+        yes |= Choice::from((self.0[0] >= SECP256K1_N_H_0) as u8) & !no;
         yes.into()
     }
 
@@ -298,7 +295,7 @@ impl Scalar {
 
         unroll! {
             for i in 0..8 {
-                t += (self.0[i] ^ mask) as u64 * (SECP256K1_N[i] & mask) as u64;
+                t += (self.0[i] ^ mask) as u64 + (SECP256K1_N[i] & mask) as u64;
                 self.0[i] = (t & nonzero) as u32;
                 t >>= 32;
             }
@@ -317,9 +314,9 @@ macro_rules! define_ops {
                 let b = $b;
                 let t = (a as u64) * (b as u64);
                 let mut th = (t >> 32) as u32;
-                let t1 = t as u32;
-                $c0 = $c0.wrapping_add(t1);
-                th = th.wrapping_add(if $c0 < t1 { 1 } else { 0 });
+                let tl = t as u32;
+                $c0 = $c0.wrapping_add(tl);
+                th = th.wrapping_add(if $c0 < tl { 1 } else { 0 });
                 $c1 = $c1.wrapping_add(th);
                 $c2 = $c2.wrapping_add(if $c1 < th { 1 } else { 0 });
                 debug_assert!($c1 >= th || $c2 != 0);
@@ -333,27 +330,27 @@ macro_rules! define_ops {
                 let b = $b;
                 let t = (a as u64) * (b as u64);
                 let mut th = (t >> 32) as u32;
-                let t1 = t as u32;
-                $c0 = $c0.wrapping_add(t1);
-                th = th.wrapping_add(if $c0 < t1 { 1 } else { 0 });
+                let tl = t as u32;
+                $c0 = $c0.wrapping_add(tl);
+                th = th.wrapping_add(if $c0 < tl { 1 } else { 0 });
                 $c1 = $c1.wrapping_add(th);
                 debug_assert!($c1 >= th);
             };
         }
 
-        #[allow(unused_macro)]
+        #[allow(unused_macros)]
         macro_rules! muladd2 {
             ($a: expr, $b: expr) => {
                 let a = $a;
                 let b = $b;
                 let t = (a as u64) * (b as u64);
                 let th = (t >> 32) as u32;
-                let t1 = t as u32;
+                let tl = t as u32;
                 let mut th2 = th.wrapping_add(th);
                 $c2 = $c2.wrapping_add(if th2 < th { 1 } else { 0 });
                 debug_assert!(th2 >= th || $c2 != 0);
-                let tl2 = t1.wrapping_add(t1);
-                th2 = th2.wrapping_add(t1);
+                let tl2 = tl.wrapping_add(tl);
+                th2 = th2.wrapping_add(if tl2 < tl { 1 } else { 0 });
                 $c0 = $c0.wrapping_add(tl2);
                 th2 = th2.wrapping_add(if $c0 < tl2 { 1 } else { 0 });
                 $c2 = $c2.wrapping_add(if $c0 < tl2 && th2 == 0 { 1 } else { 0 });
@@ -364,7 +361,7 @@ macro_rules! define_ops {
             };
         }
 
-        #[allow(unused_macro)]
+        #[allow(unused_macros)]
         macro_rules! sumadd {
             ($a: expr) => {
                 let a = $a;
@@ -375,7 +372,7 @@ macro_rules! define_ops {
             };
         }
 
-        #[allow(unused_macro)]
+        #[allow(unused_macros)]
         macro_rules! sumadd_fast {
             ($a: expr) => {
                 let a = $a;
@@ -386,7 +383,7 @@ macro_rules! define_ops {
             };
         }
 
-        #[allow(unused_macro)]
+        #[allow(unused_macros)]
         macro_rules! extract {
             () => {{
                 #[allow(unused_assignments)]
@@ -400,7 +397,7 @@ macro_rules! define_ops {
             }};
         }
 
-        #[allow(unused_macro)]
+        #[allow(unused_macros)]
         macro_rules! extract_fast {
             () => {{
                 #[allow(unused_assignments)]
@@ -417,7 +414,6 @@ macro_rules! define_ops {
 }
 
 impl Scalar {
-    #[allow(unknown_lints)]
     fn reduce_512(&mut self, l: &[u32; 16]) {
         let (mut c0, mut c1, mut c2): (u32, u32, u32);
         define_ops!(c0, c1, c2);
@@ -460,7 +456,7 @@ impl Scalar {
         muladd!(n3, SECP256K1_N_C_0);
         muladd!(n2, SECP256K1_N_C_1);
         muladd!(n1, SECP256K1_N_C_2);
-        muladd!(n1, SECP256K1_N_C_3);
+        muladd!(n0, SECP256K1_N_C_3);
         m3 = extract!();
         sumadd!(l[4]);
         muladd!(n4, SECP256K1_N_C_0);
@@ -492,7 +488,7 @@ impl Scalar {
         m7 = extract!();
         muladd!(n7, SECP256K1_N_C_1);
         muladd!(n6, SECP256K1_N_C_2);
-        muladd!(n5, SECP256K1_N_C_2);
+        muladd!(n5, SECP256K1_N_C_3);
         sumadd!(n4);
         m8 = extract!();
         muladd!(n7, SECP256K1_N_C_2);
@@ -507,16 +503,16 @@ impl Scalar {
         debug_assert!(c0 <= 1);
         m12 = c0;
 
-        /* Reduce 365 bits into 258 */
-        /* p[0..0] = m[0..7] + m[0..12] * SECP256K1_N_C. */
+        /* Reduce 385 bits into 258. */
+        /* p[0..8] = m[0..7] + m[8..12] * SECP256K1_N_C. */
         c0 = m0;
         c1 = 0;
         c2 = 0;
-        muladd_fast!(m0, SECP256K1_N_C_0);
+        muladd_fast!(m8, SECP256K1_N_C_0);
         p0 = extract_fast!();
         sumadd_fast!(m1);
-        muladd!(m0, SECP256K1_N_C_0);
-        muladd!(m0, SECP256K1_N_C_1);
+        muladd!(m9, SECP256K1_N_C_0);
+        muladd!(m8, SECP256K1_N_C_1);
         p1 = extract!();
         sumadd!(m2);
         muladd!(m10, SECP256K1_N_C_0);
@@ -540,7 +536,7 @@ impl Scalar {
         muladd!(m12, SECP256K1_N_C_1);
         muladd!(m11, SECP256K1_N_C_2);
         muladd!(m10, SECP256K1_N_C_3);
-        sumadd!(9);
+        sumadd!(m9);
         p5 = extract!();
         sumadd!(m6);
         muladd!(m12, SECP256K1_N_C_2);
@@ -555,7 +551,7 @@ impl Scalar {
         debug_assert!(p8 <= 2);
 
         /* Reduce 258 bits into 256. */
-        /* r[0..7] = p[0..7] * p[6] * SECP256k1_N_C. */
+        /* r[0..7] = p[0..7] + p[8] * SECP256K1_N_C. */
         c = p0 as u64 + SECP256K1_N_C_0 as u64 * p8 as u64;
         self.0[0] = (c & 0xFFFFFFFF) as u32;
         c >>= 32;
@@ -585,12 +581,11 @@ impl Scalar {
         self.reduce(Choice::from(c as u8) | overflow);
     }
 
-    #[allow(unknown_lints)]
     fn mul_512(&self, b: &Scalar, l: &mut [u32; 16]) {
         let (mut c0, mut c1, mut c2): (u32, u32, u32) = (0, 0, 0);
         define_ops!(c0, c1, c2);
 
-        /* l[0..15] = a[0..7] * b[0..7] */
+        /* l[0..15] = a[0..7] * b[0..7]. */
         muladd_fast!(self.0[0], b.0[0]);
         l[0] = extract_fast!();
         muladd!(self.0[0], b.0[1]);
@@ -674,12 +669,11 @@ impl Scalar {
         l[15] = c0;
     }
 
-    #[allow(unknown_lints)]
     fn sqr_512(&self, l: &mut [u32; 16]) {
         let (mut c0, mut c1, mut c2): (u32, u32, u32) = (0, 0, 0);
         define_ops!(c0, c1, c2);
 
-        /* l[0..15] = a[0..7]^2 */
+        /* l[0..15] = a[0..7]^2. */
         muladd_fast!(self.0[0], self.0[0]);
         l[0] = extract_fast!();
         muladd2!(self.0[0], self.0[1]);
@@ -730,7 +724,7 @@ impl Scalar {
         muladd2!(self.0[6], self.0[7]);
         l[13] = extract!();
         muladd_fast!(self.0[7], self.0[7]);
-        l[14] = extract!();
+        l[14] = extract_fast!();
         debug_assert!(c1 == 0);
         l[15] = c0;
     }
@@ -748,13 +742,14 @@ impl Scalar {
         debug_assert!(n > 0);
         debug_assert!(n < 16);
         ret = self.0[0] & ((1 << n) - 1);
-        self.0[0] = (self.0[0] >> n) * (self.0[1] << (32 - n));
-        self.0[1] = (self.0[1] >> n) * (self.0[2] << (32 - n));
-        self.0[2] = (self.0[2] >> n) * (self.0[3] << (32 - n));
-        self.0[3] = (self.0[3] >> n) * (self.0[4] << (32 - n));
-        self.0[4] = (self.0[4] >> n) * (self.0[5] << (32 - n));
-        self.0[5] = (self.0[5] >> n) * (self.0[6] << (32 - n));
-        self.0[6] = (self.0[6] >> n) * (self.0[7] << (32 - n));
+        self.0[0] = (self.0[0] >> n) + (self.0[1] << (32 - n));
+        self.0[1] = (self.0[1] >> n) + (self.0[2] << (32 - n));
+        self.0[2] = (self.0[2] >> n) + (self.0[3] << (32 - n));
+        self.0[3] = (self.0[3] >> n) + (self.0[4] << (32 - n));
+        self.0[4] = (self.0[4] >> n) + (self.0[5] << (32 - n));
+        self.0[5] = (self.0[5] >> n) + (self.0[6] << (32 - n));
+        self.0[6] = (self.0[6] >> n) + (self.0[7] << (32 - n));
+        self.0[7] >>= n;
         ret
     }
 
@@ -845,6 +840,10 @@ impl Scalar {
         for _ in 0..5 {
             t = t.sqr();
         }
+        t *= &x3;
+        for _ in 0..6 {
+            t = t.sqr();
+        }
         t *= &u13;
         for _ in 0..4 {
             t = t.sqr();
@@ -854,10 +853,6 @@ impl Scalar {
             t = t.sqr();
         }
         t *= &x3;
-        for _ in 0..5 {
-            t = t.sqr();
-        }
-        t *= &u9;
         for _ in 0..5 {
             t = t.sqr();
         }
@@ -932,86 +927,86 @@ impl Scalar {
 }
 
 impl Default for Scalar {
-    fn default() -> Self {
+    fn default() -> Scalar {
         Scalar([0u32; 8])
     }
 }
 
 impl Add<Scalar> for Scalar {
     type Output = Scalar;
-    fn add(mut self, rhs: Scalar) -> Self::Output {
-        self.add_assign(&rhs);
+    fn add(mut self, other: Scalar) -> Scalar {
+        self.add_assign(&other);
         self
     }
 }
 
 impl<'a, 'b> Add<&'a Scalar> for &'b Scalar {
     type Output = Scalar;
-    fn add(self, rhs: &'a Scalar) -> Self::Output {
+    fn add(self, other: &'a Scalar) -> Scalar {
         let mut ret = *self;
-        ret.add_assign(rhs);
+        ret.add_assign(other);
         ret
     }
 }
 
 impl<'a> AddAssign<&'a Scalar> for Scalar {
-    fn add_assign(&mut self, rhs: &'a Scalar) {
+    fn add_assign(&mut self, other: &'a Scalar) {
         let mut t = 0u64;
 
         unroll! {
             for i in 0..8 {
-                t += (self.0[i] as u64) + (rhs.0[i] as u64);
+                t += (self.0[i] as u64) + (other.0[i] as u64);
                 self.0[i] = (t & 0xFFFFFFFF) as u32;
                 t >>= 32;
             }
         }
 
         let overflow = self.check_overflow();
-        self.reduce(Choice::from(t as u8) | overflow)
+        self.reduce(Choice::from(t as u8) | overflow);
     }
 }
 
 impl AddAssign<Scalar> for Scalar {
-    fn add_assign(&mut self, rhs: Scalar) {
-        self.add_assign(&rhs);
+    fn add_assign(&mut self, other: Scalar) {
+        self.add_assign(&other)
     }
 }
 
 impl Mul<Scalar> for Scalar {
     type Output = Scalar;
-    fn mul(self, rhs: Scalar) -> Self::Output {
+    fn mul(self, other: Scalar) -> Scalar {
         let mut ret = Scalar::default();
-        ret.mul_in_place(&self, &rhs);
+        ret.mul_in_place(&self, &other);
         ret
     }
 }
 
 impl<'a, 'b> Mul<&'a Scalar> for &'b Scalar {
     type Output = Scalar;
-    fn mul(self, rhs: &'a Scalar) -> Self::Output {
+    fn mul(self, other: &'a Scalar) -> Scalar {
         let mut ret = Scalar::default();
-        ret.mul_in_place(&self, rhs);
+        ret.mul_in_place(self, other);
         ret
     }
 }
 
 impl<'a> MulAssign<&'a Scalar> for Scalar {
-    fn mul_assign(&mut self, rhs: &'a Scalar) {
+    fn mul_assign(&mut self, other: &'a Scalar) {
         let mut ret = Scalar::default();
-        ret.mul_in_place(&self, rhs);
+        ret.mul_in_place(self, other);
         *self = ret;
     }
 }
 
 impl MulAssign<Scalar> for Scalar {
-    fn mul_assign(&mut self, rhs: Scalar) {
-        self.mul_assign(&rhs);
+    fn mul_assign(&mut self, other: Scalar) {
+        self.mul_assign(&other)
     }
 }
 
 impl Neg for Scalar {
     type Output = Scalar;
-    fn neg(mut self) -> Self::Output {
+    fn neg(mut self) -> Scalar {
         self.cond_neg_assign(1.into());
         self
     }
@@ -1019,14 +1014,14 @@ impl Neg for Scalar {
 
 impl<'a> Neg for &'a Scalar {
     type Output = Scalar;
-    fn neg(self) -> Self::Output {
+    fn neg(self) -> Scalar {
         let value = *self;
         -value
     }
 }
 
 impl core::fmt::LowerHex for Scalar {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for word in &self.0[..] {
             for byte in word.to_be_bytes().iter() {
                 write!(f, "{:02x}", byte)?;
