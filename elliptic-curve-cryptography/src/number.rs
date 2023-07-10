@@ -28,4 +28,20 @@ where
     Self: PartialEq,
 {
     fn mod_cal(a: &Self, p: &Self) -> Self;
+    fn pow(&self, exp: u32) -> Self;
+    fn mod_pow(a: &Self, e: &Self, p: &Self) -> Self;
+    fn exgcd(&self, b: &Self) -> (Self, Self, Self);
+    fn mod_inv(a: &Self, p: &Self) -> Self;
+    fn jacobi(&self, q: &Self) -> i32;
+    fn mod_sqrt(a: &Self, p: &Self) -> Self;
+    fn to_hex(&self) -> String;
+    fn add_ref(&self, rhs: &Self) -> Self;
+    fn sub_ref(&self, rhs: &Self) -> Self;
+    fn mul_ref(&self, rhs: &Self) -> Self;
+    fn gen_rand(min: &Self, max: &Self) -> Self;
+    fn bit_len(&self) -> usize;
+    fn test_bit(&self, bit: usize) -> bool;
+    fn from_bytes_radix(but: &[u8], radix: u32) -> Self; // b"..."
+    fn from_bytes_be(bytes: &[u8]) -> Self;
+    fn to_bytes_be(&self) -> Vec<u8>;
 }
