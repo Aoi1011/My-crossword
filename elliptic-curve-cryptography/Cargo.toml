@@ -6,5 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-finite-fields = { path = "../finite-fields" }
-elliptic-curves = { path = "../elliptic-curves" }
+num-bigint = { version = "0.4", features = ["rand"] }
+ibig = "0.3.4"
+num-traits = "0.2.11"
+rand = "0.8"
+
