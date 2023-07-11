@@ -3,6 +3,7 @@ use std::{
     ops::{Add, BitAnd, Div, Mul, Rem, Shr, Sub},
 };
 
+use ibig::{ibig, IBig};
 use num_traits::{One, Zero};
 
 pub trait Number
@@ -44,4 +45,138 @@ where
     fn from_bytes_radix(but: &[u8], radix: u32) -> Self; // b"..."
     fn from_bytes_be(bytes: &[u8]) -> Self;
     fn to_bytes_be(&self) -> Vec<u8>;
+}
+
+impl Number for IBig {
+    fn mod_cal(a: &Self, p: &Self) -> Self {
+        let mut x = a % p;
+        if x < IBig::zero() {
+            x += p;
+        }
+        x
+    }
+
+    fn pow(&self, exp: u32) -> Self {
+        self.pow(exp as usize)
+    }
+
+    fn mod_pow(a: &Self, e: &Self, p: &Self) -> Self {
+        if e.is_zero() {
+            return ibig!(1);
+        }
+        let mut ex = e.clone();
+        let mut res = ibig!(1);
+        let mut t = a % p;
+        while ex > ibig!(0) {
+            if e & 1 == ibig!(1) {
+                res = res * a % p;
+            }
+            t = &t * &t % p;
+            ex >>= 1;
+        }
+        res
+    }
+
+    fn exgcd(&self, b: &Self) -> (Self, Self, Self) {
+        let (mut q, mut r, mut s, mut t);
+        let (mut x, mut y) = (self.clone(), b.clone());
+        let (mut s0, mut s1) = (IBig::one(), IBig::zero());
+        let (mut t0, mut t1) = (IBig::zero(), IBig::one());
+        while y > IBig::zero() {
+            q = &x / &y;
+            r = &x % &y;
+            s = &s0 - &q * &s1;
+            t = &t0 - &q * &t1;
+            x = y;
+            y = r;
+            s0 = s1;
+            t0 = t1;
+            s1 = s;
+            t1 = t;
+        }
+        (x, s0, t0)
+    }
+
+    /// mod inverse n^(-1) mod p
+    fn mod_inv(a: &Self, p: &Self) -> Self {
+        // assert!(n * modinv(n, p) == 1);
+        let mut m = a.clone();
+
+        if m < IBig::zero() {
+            m = &m + p;
+        }
+        let (_, mut res, _) = m.exgcd(p);
+        if res < IBig::zero() {
+            res = &res + p;
+        }
+        res
+    }
+
+    /// jacobi symbol: judge existing modsqrtmod (1: exist, -1: not exist)
+    fn jacobi(&self, q: &Self) -> i32 {
+        if q.is_one() {
+            return 1;
+        }
+        if self.is_zero() {
+            return 0;
+        }
+        let e;
+        if self % ibig!(2) == ibig!(0) {
+            // e = (q * q - 1) / 8;
+            e = (q * q - 1) / ibig!(8);
+            if e % ibig!(2) == ibig!(0) {
+                return (self / ibig!(2)).jacobi(q);
+            } else {
+                return -(self / ibig!(2)).jacobi(q);
+            }
+        }
+
+        // e = (a - 1) / 2 * (q - 1) / 2;
+        e = (self - 1) / ibig!(2) * (q - 1) / ibig!(2);
+        if e % ibig!(2) == ibig!(0) {
+            (q % self).jacobi(self)
+        } else {
+            -(q % self).jacobi(self)
+        }
+    }
+
+    /// Tonelli's Algorithm
+    #[allow(clippy::many_single_char_names)]
+    fn mod_sqrt(a: &Self, p: &Self) -> Self {
+        let one = ibig!(1);
+        let p1 = p - 1i32;
+
+        // b: some non-quadratic-redidue
+        let mut b = ibig!(0);
+        while b.is_zero() || b.jacobi(p) != -1 {
+            b = Number::gen_rand(&one, &p1);
+        }
+
+        // p = t * 2 ^ s + 1, t is odd
+        let mut t = p1;
+        let mut s = IBig::zero();
+        while &t & IBig::one() == IBig::zero() {
+            t = &t >> 1;
+            s = &s + 1i32;
+        }
+
+        // assert p == t * 2 ^ s + 1 and t % 2 == 1
+        let ni = Self::mod_inv(a, p);
+        let mut c = Self::mod_pow(&b, &t, p);
+        let mut r = Self::mod_pow(&ni, &((&t + &one) / ibig!(2)), p);
+
+        // for k in 1..s
+        let mut k = ibig!(1);
+        while k < s {
+            let b = Self::mod_pow(&r, &ibig!(2), p) * &ni % p;
+            let e = &Self::mod_pow(&ibig!(2), &(&s - &k - &one), p);
+            let d = Self::mod_pow(&b, e, p);
+            if d == p - &one {
+                r = &r * &c % p;
+            }
+            c = &c * &c % p;
+            k = &k + &one;
+        }
+        r // or (p - r)
+    }
 }
