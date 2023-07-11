@@ -1,10 +1,12 @@
 use std::{
     fmt::Display,
     ops::{Add, BitAnd, Div, Mul, Rem, Shr, Sub},
+    str,
 };
 
-use ibig::{ibig, IBig};
+use ibig::{ibig, IBig, UBig};
 use num_traits::{One, Zero};
+use rand::Rng;
 
 pub trait Number
 where
@@ -178,5 +180,49 @@ impl Number for IBig {
             k = &k + &one;
         }
         r // or (p - r)
+    }
+
+    fn to_hex(&self) -> String {
+        format!("{:x}", self)
+    }
+
+    fn add_ref(&self, rhs: &Self) -> Self {
+        self + rhs
+    }
+
+    fn sub_ref(&self, rhs: &Self) -> Self {
+        self - rhs
+    }
+
+    fn mul_ref(&self, rhs: &Self) -> Self {
+        self * rhs
+    }
+
+    fn gen_rand(min: &Self, max: &Self) -> Self {
+        let mut rng = rand::thread_rng();
+        rng.gen_range(min.clone()..max.clone())
+    }
+
+    fn bit_len(&self) -> usize {
+        UBig::try_from(self).unwrap().bit_len()
+    }
+
+    fn test_bit(&self, bit: usize) -> bool {
+        let ui = UBig::try_from(self).unwrap();
+        ui.bit(bit)
+    }
+
+    fn from_bytes_be(bytes: &[u8]) -> Self {
+        IBig::from(UBig::from_be_bytes(bytes))
+    }
+
+    fn to_bytes_be(&self) -> Vec<u8> {
+        let ui = UBig::try_from(self).unwrap();
+        ui.to_be_bytes()
+    }
+
+    fn from_bytes_radix(buf: &[u8], radix: u32) -> Self {
+        let s = str::from_utf8(buf).ok().unwrap();
+        IBig::from_str_radix(s, radix).unwrap()
     }
 }
