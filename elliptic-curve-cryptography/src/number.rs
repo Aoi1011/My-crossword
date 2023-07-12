@@ -5,7 +5,7 @@ use std::{
 };
 
 use ibig::{ibig, IBig, UBig};
-use num_bigint::BigInt;
+use num_bigint::{BigInt, RandBigInt, Sign};
 use num_traits::{One, Zero};
 use rand::Rng;
 
@@ -45,7 +45,7 @@ where
     fn gen_rand(min: &Self, max: &Self) -> Self;
     fn bit_len(&self) -> usize;
     fn test_bit(&self, bit: usize) -> bool;
-    fn from_bytes_radix(but: &[u8], radix: u32) -> Self; // b"..."
+    fn from_bytes_radix(buf: &[u8], radix: u32) -> Self; // b"..."
     fn from_bytes_be(bytes: &[u8]) -> Self;
     fn to_bytes_be(&self) -> Vec<u8>;
 }
@@ -308,47 +308,78 @@ impl Number for BigInt {
     /// Tonelli's Algorithm
     #[allow(clippy::many_single_char_names)]
     fn mod_sqrt(a: &Self, p: &Self) -> Self {
-        
+        let mut rng = rand::thread_rng();
+
+        // b: some non-quadratic-residue
+        let mut b = BigInt::zero();
+        while b.is_zero() || b.jacobi(p) != -1 {
+            b = rng.gen_bigint_range(&BigInt::one(), &(p - 1));
+        }
+        // p = t * 2^s + 1, t is odd
+        let mut t = p * BigInt::one();
+        let mut s = BigInt::zero();
+        while &t & BigInt::one() == BigInt::zero() {
+            t = &t >> 1u32;
+            s = &s + 1u32;
+        }
+        // assert p == t * 2^s + 1 and t % 2 == 1
+        let ni = Self::mod_inv(a, p);
+        let mut c = b.modpow(&t, p);
+        let mut r = a.modpow(&((&t + 1u32) / 2u32), p);
+
+        // for k in 1..s
+        let mut k = BigInt::one();
+        while k < s {
+            let b = r.modpow(&BigInt::from(2u32), p) * &ni % p;
+            let e = &BigInt::from(2u32).modpow(&(&s - &k - 1u32), p);
+            let d = b.modpow(e, p);
+            if d == p - 1u32 {
+                r = &r * &c % p;
+            }
+            c = &c * &c % p;
+            k = &k + 1u32;
+        }
+        r // or (p - r)
     }
 
     fn to_hex(&self) -> String {
-        
+        format!("{:x}", self)
     }
 
     fn add_ref(&self, rhs: &Self) -> Self {
-        
+        self + rhs
     }
 
     fn sub_ref(&self, rhs: &Self) -> Self {
-        
+        self - rhs
     }
 
     fn mul_ref(&self, rhs: &Self) -> Self {
-        
+        self * rhs
     }
 
     fn gen_rand(min: &Self, max: &Self) -> Self {
-        
+        let mut rng = rand::thread_rng();
+        rng.gen_bigint_range(min, max)
     }
 
     fn bit_len(&self) -> usize {
-        
+        self.bits() as usize
     }
 
     fn test_bit(&self, bit: usize) -> bool {
-        
+        self.bit(bit as u64)
     }
 
     fn from_bytes_be(bytes: &[u8]) -> Self {
-        
+        BigInt::from_bytes_be(Sign::Plus, bytes)
     }
 
     fn to_bytes_be(&self) -> Vec<u8> {
-        
+        self.to_bytes_be().1
     }
 
-    fn from_bytes_radix(but: &[u8], radix: u32) -> Self {
-        
+    fn from_bytes_radix(buf: &[u8], radix: u32) -> Self {
+        BigInt::parse_bytes(buf, radix).unwrap()
     }
-
 }
