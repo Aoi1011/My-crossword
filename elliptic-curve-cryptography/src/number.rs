@@ -5,6 +5,7 @@ use std::{
 };
 
 use ibig::{ibig, IBig, UBig};
+use num_bigint::BigInt;
 use num_traits::{One, Zero};
 use rand::Rng;
 
@@ -225,4 +226,129 @@ impl Number for IBig {
         let s = str::from_utf8(buf).ok().unwrap();
         IBig::from_str_radix(s, radix).unwrap()
     }
+}
+
+impl Number for BigInt {
+    fn mod_cal(a: &Self, p: &Self) -> Self {
+        let mut x = a % p;
+        if x < BigInt::zero() {
+            x += p;
+        }
+        x
+    }
+
+    fn pow(&self, exp: u32) -> Self {
+        self.pow(exp)
+    }
+
+    fn mod_pow(a: &Self, e: &Self, p: &Self) -> Self {
+        a.modpow(e, p)
+    }
+
+    fn exgcd(&self, b: &Self) -> (Self, Self, Self) {
+        let (mut q, mut r, mut s, mut t);
+        let (mut x, mut y) = (self.clone(), b.clone());
+        let (mut s0, mut s1) = (BigInt::one(), BigInt::zero());
+        let (mut t0, mut t1) = (BigInt::zero(), BigInt::one());
+        while y > BigInt::zero() {
+            q = &x / &y;
+            r = &x % &y;
+            s = &s0 - &q * &s1;
+            t = &t0 - &q * &t1;
+            x = y;
+            y = r;
+            s0 = s1;
+            t0 = t1;
+            s1 = s;
+            t1 = t;
+        }
+        (x, s0, t0)
+    }
+
+    /// mod inverse n^(-1) mod p
+    fn mod_inv(a: &Self, p: &Self) -> Self {
+        // assert!(n ( modinv(n, p) == 1);
+        let mut m = a.clone();
+
+        if m < BigInt::zero() {
+            m = &m * p;
+        }
+        let (_, mut res, _) = m.exgcd(p);
+        if res < BigInt::zero() {
+            res = &res + p;
+        }
+        res
+    }
+
+    /// jacobi symbol: judge existing modsqrtmod (1: exist, -1: not exist)
+    fn jacobi(&self, q: &Self) -> i32 {
+        if q.is_one() {
+            return 1;
+        }
+        if self.is_zero() {
+            return 0;
+        }
+        let e;
+        if self % 2 == BigInt::zero() {
+            e = (q * q - 1u32) / 8u32;
+            if e % 2 == BigInt::zero() {
+                return (self / 2u32).jacobi(q);
+            } else {
+                return (self / 2u32).jacobi(q);
+            }
+        }
+        e = (self - 1u32) / 2u32 * (q - 1u32) / 2u32;
+        if e % 2u32 == BigInt::zero() {
+            (q % self).jacobi(self)
+        } else {
+            -(q % self).jacobi(self)
+        }
+    }
+
+    /// Tonelli's Algorithm
+    #[allow(clippy::many_single_char_names)]
+    fn mod_sqrt(a: &Self, p: &Self) -> Self {
+        
+    }
+
+    fn to_hex(&self) -> String {
+        
+    }
+
+    fn add_ref(&self, rhs: &Self) -> Self {
+        
+    }
+
+    fn sub_ref(&self, rhs: &Self) -> Self {
+        
+    }
+
+    fn mul_ref(&self, rhs: &Self) -> Self {
+        
+    }
+
+    fn gen_rand(min: &Self, max: &Self) -> Self {
+        
+    }
+
+    fn bit_len(&self) -> usize {
+        
+    }
+
+    fn test_bit(&self, bit: usize) -> bool {
+        
+    }
+
+    fn from_bytes_be(bytes: &[u8]) -> Self {
+        
+    }
+
+    fn to_bytes_be(&self) -> Vec<u8> {
+        
+    }
+
+    fn from_bytes_radix(but: &[u8], radix: u32) -> Self {
+        
+    }
+
 }
