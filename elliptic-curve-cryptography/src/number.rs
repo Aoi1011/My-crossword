@@ -80,6 +80,9 @@ impl Number for IBig {
         res
     }
 
+    /// gcd --- greatest common divisor
+    /// Extended Euclidean Algorithm also finds integers s and t such that 
+    /// as + bt = gcd(a, b)
     fn exgcd(&self, b: &Self) -> (Self, Self, Self) {
         let (mut q, mut r, mut s, mut t);
         let (mut x, mut y) = (self.clone(), b.clone());
