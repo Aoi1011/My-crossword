@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 libsecp256k1-core = { version = "0.1.0", path = "core", default-features = false }
+ecc = { version = "0.1.0", path = "elliptic-curve-cryptography", default-fetures = false }
 arrayref = "0.3.7"
 rand = { version = "0.8.5", default-features = false }
 digest = "0.10.7"

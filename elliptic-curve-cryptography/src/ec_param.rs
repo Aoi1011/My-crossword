@@ -1,6 +1,8 @@
 //!
 //! Elliptic Curve Point Parameter Interface
 
+use crate::number::Number;
+
 /// EC curve parameters
 /// id, a, b, p, g (04|X|Y), order, h
 pub struct EcParam<'a> {
@@ -83,5 +85,49 @@ impl EcParam<'_> {
             }
         }
         false
+    }
+}
+
+pub trait ParamOp<T: Number> {
+    fn get_prime(&self) -> T;
+    fn get_a(&self) -> T;
+    fn get_b(&self) -> T;
+    fn get_order(&self) -> T;
+    fn get_cofactor(&self) -> T;
+    fn get_gx(&self) -> T;
+    fn get_gy(&self) -> T;
+}
+
+impl<T: Number> ParamOp<T> for EcParam<'_> {
+    fn get_prime(&self) -> T {
+        T::from_bytes_radix(self.p, 16)
+    }
+
+    fn get_a(&self) -> T {
+        T::from_bytes_radix(self.a, 16)
+    }
+
+    fn get_b(&self) -> T {
+        T::from_bytes_radix(self.b, 16)
+    }
+
+    fn get_order(&self) -> T {
+        T::from_bytes_radix(self.n, 16)
+    }
+
+    fn get_cofactor(&self) -> T {
+        T::from_bytes_radix(self.h, 16)
+    }
+
+    fn get_gx(&self) -> T {
+        let ln = (self.g.len() - 2) / 2;
+        let gb = &self.g[2..(ln + 2)];
+        T::from_bytes_radix(gb, 16)
+    }
+
+    fn get_gy(&self) -> T {
+        let ln = (self.g.len() - 2) / 2;
+        let gb = &self.g[(ln + 2)..self.g.len()];
+        T::from_bytes_radix(gb, 16)
     }
 }
