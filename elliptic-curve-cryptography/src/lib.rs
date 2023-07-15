@@ -1,13 +1,14 @@
 //!
 //! Elliptic Curve Calculation Library
 //!
+pub mod ec_param;
+pub mod ecc_a;
+pub mod number;
 
 use std::fmt;
 
 use num_traits::{One, Zero};
 use number::Number;
-mod ec_param;
-mod number;
 
 #[derive(Clone, PartialEq, Copy)]
 pub enum EcAxis {
