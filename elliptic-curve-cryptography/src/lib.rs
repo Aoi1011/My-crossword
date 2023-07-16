@@ -3,6 +3,7 @@
 //!
 pub mod ec_param;
 pub mod ecc_a;
+pub mod ecc_j;
 pub mod number;
 
 use std::fmt;
@@ -86,7 +87,7 @@ pub trait EcOp<T: Number> {
     fn decode_point(&self, enc: &[u8]) -> Point<T>;
     /// Convert 3D to 2D
     fn to_affine(&self, p: &Point<T>) -> Point<T>;
-    fn normalize(&self, p: &Point<T>);
+    fn normalize(&self, p: &mut Point<T>);
     /// Get zero point
     fn get_zero(&self) -> Point<T>;
     /// Is zero point ?
