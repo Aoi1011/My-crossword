@@ -157,6 +157,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "finite-fields"
+version = "0.1.0"
+dependencies = [
+ "ibig",
+]
+
+[[package]]
 name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -256,6 +263,7 @@ dependencies = [
  "clear_on_drop",
  "digest 0.10.7",
  "ecc",
+ "finite-fields",
  "hex",
  "hex-literal",
  "hmac-drbg",
