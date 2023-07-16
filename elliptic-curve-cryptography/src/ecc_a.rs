@@ -63,7 +63,7 @@ impl<T: Number> EcOp<T> for EcpA<T> {
         p.clone()
     }
 
-    fn normalize(&self, _p: &Point<T>) {}
+    fn normalize(&self, _p: &mut Point<T>) {}
 
     /// Find Point<T> on curve at x
     fn point_from_x(&self, x: &T, yt: u32) -> Point<T> {
