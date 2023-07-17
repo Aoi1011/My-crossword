@@ -1,8 +1,9 @@
 use std::ops::Add;
 
 use finite_fields::FieldElement;
+use ibig::ibig;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Point {
     pub x: Option<FieldElement>,
     pub y: Option<FieldElement>,
@@ -18,8 +19,8 @@ impl Point {
         a: FieldElement,
         b: FieldElement,
     ) -> Self {
-        if let (Some(x_field), Some(y_field)) = (x, y) {
-            if y_field.pow(2) != x_field.pow(3).add(Some(a.mul(Some(x_field)))).add(Some(b)) {
+        if let (Some(x_field), Some(y_field)) = (x.clone(), y.clone()) {
+            if y_field.pow(2) != x_field.pow(3).add(&a.mul(&x_field)).add(&b) {
                 panic!("({:?}, {:?}) is not on the curve", x_field, y_field);
             }
         }
@@ -37,13 +38,13 @@ impl Point {
 
     pub fn rmul(&self, coefficient: u32) -> Self {
         let mut coef = coefficient;
-        let mut current = *self;
-        let mut result = Self::new(None, None, self.a, self.b);
+        let mut current = self.clone();
+        let mut result = Self::new(None, None, self.a.clone(), self.b.clone());
         while coef != 0 {
             if coef & 1 == 1 {
-                result = result + current;
+                result = result + current.clone();
             }
-            current = current + current;
+            current = current.clone() + current.clone();
             coef >>= 1;
         }
         result
@@ -58,7 +59,7 @@ impl Add for Point {
             panic!("Points {:?}, {:?} are not on the same curve", self, rhs);
         }
 
-        match (self.x, rhs.x) {
+        match (self.x.clone(), rhs.x.clone()) {
             (Some(self_x), Some(other_x)) if self_x == other_x && self.y != rhs.y => Self {
                 x: None,
                 y: None,
@@ -70,12 +71,12 @@ impl Add for Point {
                 let s = rhs
                     .y
                     .unwrap()
-                    .sub(self.y)
-                    .true_dev(Some(other_x.sub(self.x)));
+                    .sub(&self.y.clone().unwrap())
+                    .true_div(Some(other_x.sub(&self.x.clone().unwrap())));
                 // x3 = s ^ 2 - x1 - x2
-                let x3 = s.pow(2).sub(self.x).sub(rhs.x);
+                let x3 = s.pow(2).sub(&self.x.unwrap()).sub(&rhs.x.clone().unwrap());
                 // y3 = s(x1 - x3) - y1
-                let y3 = s.mul(Some(self_x.sub(Some(x3)))).sub(self.y);
+                let y3 = s.mul(&self_x.sub(&x3)).sub(&self.y.unwrap());
                 Self {
                     x: Some(x3),
                     y: Some(y3),
@@ -84,17 +85,20 @@ impl Add for Point {
                 }
             }
             (Some(self_x), Some(other_x)) if self_x == other_x && self.y == rhs.y => {
+                let x_prime = self_x.clone().prime;
                 // s = (3x1 ^ 2 + a) / (2y1)
-                let s = FieldElement::new(3, self_x.prime)
-                    .mul(Some(self_x.pow(2)))
-                    .add(Some(self.a))
-                    .true_dev(Some(FieldElement::new(2, self_x.prime).mul(self.y)));
+                let s = FieldElement::new(ibig!(3), x_prime.clone())
+                    .mul(&self_x.pow(2))
+                    .add(&self.a)
+                    .true_div(Some(
+                        FieldElement::new(ibig!(2), x_prime.clone()).mul(&self.y.clone().unwrap()),
+                    ));
                 // x3 = s ^ 2 - 2x1
                 let x3 = s
                     .pow(2)
-                    .sub(Some(FieldElement::new(2, self_x.prime).mul(Some(self_x))));
+                    .sub(&FieldElement::new(ibig!(2), x_prime.clone()).mul(&self_x));
                 // y3 = s(x1 - x3) - y1
-                let y3 = s.mul(Some(self_x.sub(Some(x3)))).sub(self.y);
+                let y3 = s.mul(&self_x.sub(&x3)).sub(&self.y.unwrap());
 
                 Self {
                     x: Some(x3),
@@ -118,45 +122,71 @@ impl Add for Point {
 #[cfg(test)]
 mod tests {
     use finite_fields::FieldElement;
+    use ibig::ibig;
 
     use crate::Point;
 
     #[test]
     fn test_equal() {
-        let field_element1 = FieldElement::new(-1, 27);
-        let field_element2 = FieldElement::new(-1, 27);
-        let a = FieldElement::new(5, 27);
-        let b = FieldElement::new(7, 27);
-        let point1 = Point::new(Some(field_element1), Some(field_element1), a, b);
-        let point2 = Point::new(Some(field_element2), Some(field_element2), a, b);
+        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
+        let field_element2 = FieldElement::new(ibig!(-1), ibig!(27));
+        let a = FieldElement::new(ibig!(5), ibig!(27));
+        let b = FieldElement::new(ibig!(7), ibig!(27));
+        let point1 = Point::new(
+            Some(field_element1.clone()),
+            Some(field_element1),
+            a.clone(),
+            b.clone(),
+        );
+        let point2 = Point::new(Some(field_element2.clone()), Some(field_element2), a, b);
 
         assert!(point1.equal(Some(point2)));
     }
 
     #[test]
     fn test_add() {
-        let field_element1 = FieldElement::new(-1, 27);
-        let field_element2 = FieldElement::new(1, 27);
-        let a = FieldElement::new(5, 27);
-        let b = FieldElement::new(7, 27);
-        let point1 = Point::new(Some(field_element1), Some(field_element1), a, b);
-        let point2 = Point::new(Some(field_element1), Some(field_element2), a, b);
+        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
+        let field_element2 = FieldElement::new(ibig!(1), ibig!(27));
+        let a = FieldElement::new(ibig!(5), ibig!(27));
+        let b = FieldElement::new(ibig!(7), ibig!(27));
+        let point1 = Point::new(
+            Some(field_element1.clone()),
+            Some(field_element1.clone()),
+            a.clone(),
+            b.clone(),
+        );
+        let point2 = Point::new(
+            Some(field_element1),
+            Some(field_element2),
+            a.clone(),
+            b.clone(),
+        );
         let inf = Point::new(None, None, a, b);
 
         assert_eq!(point1 + point2, inf);
 
         // x1 != x2
-        let prime = 223;
-        let a = FieldElement::new(0, prime);
-        let b = FieldElement::new(7, prime);
-        let field_element1 = FieldElement::new(170, prime);
-        let field_element2 = FieldElement::new(142, prime);
-        let field_element3 = FieldElement::new(60, prime);
-        let field_element4 = FieldElement::new(139, prime);
-        let field_element5 = FieldElement::new(220, prime);
-        let field_element6 = FieldElement::new(181, prime);
-        let point1 = Point::new(Some(field_element1), Some(field_element2), a, b);
-        let point2 = Point::new(Some(field_element3), Some(field_element4), a, b);
+        let prime = ibig!(223);
+        let a = FieldElement::new(ibig!(0), prime.clone());
+        let b = FieldElement::new(ibig!(7), prime.clone());
+        let field_element1 = FieldElement::new(ibig!(170), prime.clone());
+        let field_element2 = FieldElement::new(ibig!(142), prime.clone());
+        let field_element3 = FieldElement::new(ibig!(60), prime.clone());
+        let field_element4 = FieldElement::new(ibig!(139), prime.clone());
+        let field_element5 = FieldElement::new(ibig!(220), prime.clone());
+        let field_element6 = FieldElement::new(ibig!(181), prime.clone());
+        let point1 = Point::new(
+            Some(field_element1),
+            Some(field_element2),
+            a.clone(),
+            b.clone(),
+        );
+        let point2 = Point::new(
+            Some(field_element3),
+            Some(field_element4),
+            a.clone(),
+            b.clone(),
+        );
         let point3 = Point::new(Some(field_element5), Some(field_element6), a, b);
 
         assert_eq!(point1 + point2, point3);

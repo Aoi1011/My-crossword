@@ -36,12 +36,7 @@ impl FieldElement {
         self.num != other.num || self.prime != other.prime
     }
 
-    pub fn add(&self, other: Option<FieldElement>) -> Self {
-        if other.is_none() {
-            panic!("other is none");
-        }
-
-        let other = other.unwrap();
+    pub fn add(&self, other: &FieldElement) -> Self {
         if self.prime != other.prime {
             panic!("cannot add two numbers in different Fields");
         }
@@ -53,12 +48,7 @@ impl FieldElement {
         }
     }
 
-    pub fn sub(&self, other: Option<FieldElement>) -> Self {
-        if other.is_none() {
-            panic!("other is none");
-        }
-
-        let other = other.unwrap();
+    pub fn sub(&self, other: &FieldElement) -> Self {
         if self.prime != other.prime {
             panic!("cannot subtract two numbers in different Fields");
         }
@@ -70,17 +60,12 @@ impl FieldElement {
         }
     }
 
-    pub fn mul(&self, other: Option<FieldElement>) -> Self {
-        if other.is_none() {
-            panic!("other is none");
-        }
-
-        let other = other.unwrap();
+    pub fn mul(&self, other: &FieldElement) -> Self {
         if self.prime != other.prime {
             panic!("cannot multiply two numbers in different Fields");
         }
 
-        let num = self.modulo(&(&self.num * other.num));
+        let num = self.modulo(&(&self.num * &other.num));
         Self {
             num,
             prime: self.prime.clone(),

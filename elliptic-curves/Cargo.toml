@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 finite-fields = { path = "../finite-fields" }
+ibig = "0.3.6"
