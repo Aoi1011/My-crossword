@@ -1,4 +1,4 @@
-use ibig::{UBig, IBig, ibig};
+use ibig::{ibig, IBig};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FieldElement {
@@ -87,34 +87,32 @@ impl FieldElement {
         }
     }
 
-    // pub fn pow(&self, exponent: i32) -> Self {
-    //     let mut n = exponent;
-    //     while n < 0 {
-    //         n += self.prime - 1;
-    //     }
-    //     let num = self.modulo(self.num.pow(n as u32));
-    //     Self {
-    //         num,
-    //         prime: self.prime,
-    //     }
-    // }
+    pub fn pow(&self, exp: u32) -> Self {
+        let num = self.modulo(&self.num.pow(exp as usize));
+        Self {
+            num,
+            prime: self.prime.clone(),
+        }
+    }
 
-    //pub fn true_dev(&self, other: Option<FieldElement>) -> Self {
-    //    let other = other.unwrap();
-    //    if self.prime != other.prime {
-    //        panic!("cannot divide two numbers in different Fields");
-    //    }
+    pub fn true_div(&self, other: Option<FieldElement>) -> Self {
+        let other = other.unwrap();
+        if self.prime != other.prime {
+            panic!("cannot divide two numbers in different Fields");
+        }
 
-    //    // use Fermat's little theorem
-    //    // self.num.pow(p-1) % p == 1
-    //    // this means:
-    //    // 1/n == pow(n, p-2, p) in Python
-    //    let result = self.num.clone() * self.pow_mod(other.num);
-    //    Self {
-    //        num: result % self.prime.clone(),
-    //        prime: self.prime.clone(),
-    //    }
-    //}
+        // use Fermat's little theorem
+        // self.num.pow(p-1) % p == 1
+        // this means:
+        // 1/n == pow(n, p-2, p) in Python
+        let exp = other.prime.to_f32() - 2f32;
+        let num_pow = other.pow(exp as u32);
+        let result = self.num.clone() * num_pow.num;
+        Self {
+            num: result % self.prime.clone(),
+            prime: self.prime.clone(),
+        }
+    }
 
     fn modulo(&self, b: &IBig) -> IBig {
         let result = b % self.prime.clone();
@@ -124,22 +122,6 @@ impl FieldElement {
             result
         }
     }
-
-    //fn pow_mod(&self, base: IBig) -> IBig {
-    //    let mut result = ibig!(1);
-    //    let mut base = base;
-    //    let mut exponent = self.prime - 2;
-    //    let modules = self.prime;
-
-    //    while exponent > ibig!(0) {
-    //        if exponent % 2 == 1 {
-    //            result = (result * base) % modules;
-    //        }
-    //        base = (base * base) % modules;
-    //        exponent /= 2;
-    //    }
-    //    result
-    //}
 }
 
 #[cfg(test)]
@@ -153,84 +135,93 @@ mod tests {
         assert!(!element.equal(Some(other)));
     }
 
-    //#[test]
-    //fn test_fieldelement_ne() {
-    //    let element = FieldElement::new(7, 13);
-    //    let other = FieldElement::new(6, 13);
-    //    assert!(element.ne(Some(other)));
-    //}
+    #[test]
+    fn test_fieldelement_ne() {
+        let element = FieldElement::new(ibig!(7), ibig!(13));
+        let other = FieldElement::new(ibig!(6), ibig!(13));
+        assert!(element.ne(Some(other)));
+    }
 
-    //#[test]
-    //fn test_calculate_modulo() {
-    //    let prime = 57;
+    #[test]
+    fn test_calculate_modulo() {
+        let prime = ibig!(57);
 
-    //    let field_element_1 = FieldElement::new(44, prime);
-    //    assert_eq!(20, field_element_1.modulo(field_element_1.num + 33));
+        let field_element_1 = FieldElement::new(ibig!(44), prime.clone());
+        assert_eq!(
+            ibig!(20),
+            field_element_1.modulo(&(&field_element_1.num + ibig!(33)))
+        );
 
-    //    let field_element_2 = FieldElement::new(9, prime);
-    //    assert_eq!(37, field_element_2.modulo(field_element_2.num + -29));
+        let field_element_2 = FieldElement::new(ibig!(9), prime.clone());
+        assert_eq!(
+            ibig!(37),
+            field_element_2.modulo(&(&field_element_2.num + ibig!(-29)))
+        );
 
-    //    let field_element_3 = FieldElement::new(17, prime);
-    //    assert_eq!(51, field_element_3.modulo(field_element_3.num + 42 + 49));
+        let field_element_3 = FieldElement::new(ibig!(17), prime.clone());
+        assert_eq!(
+            ibig!(51),
+            field_element_3.modulo(&(&field_element_3.num + ibig!(42) + ibig!(49)))
+        );
 
-    //    let field_element_4 = FieldElement::new(52, prime);
-    //    assert_eq!(
-    //        41,
-    //        field_element_4.modulo(field_element_4.num + -30 - 38) % prime
-    //    );
-    //}
+        let field_element_4 = FieldElement::new(ibig!(52), prime.clone());
+        assert_eq!(
+            ibig!(41),
+            field_element_4.modulo(&(&field_element_4.num + ibig!(-30) - ibig!(38))) % prime
+        );
+    }
 
-    //#[test]
-    //fn test_add() {
-    //    let a = FieldElement::new(7, 13);
-    //    let b = FieldElement::new(12, 13);
-    //    let c = FieldElement::new(6, 13);
+    #[test]
+    fn test_add() {
+        let a = FieldElement::new(ibig!(7), ibig!(13));
+        let b = FieldElement::new(ibig!(12), ibig!(13));
+        let c = FieldElement::new(ibig!(6), ibig!(13));
 
-    //    assert_eq!(a.add(Some(b)), c);
-    //}
+        assert_eq!(a.add(Some(b)), c);
+    }
 
-    //#[test]
-    //fn test_mul() {
-    //    let a = FieldElement::new(3, 13);
-    //    let b = FieldElement::new(12, 13);
-    //    let c = FieldElement::new(10, 13);
+    #[test]
+    fn test_mul() {
+        let a = FieldElement::new(ibig!(3), ibig!(13));
+        let b = FieldElement::new(ibig!(12), ibig!(13));
+        let c = FieldElement::new(ibig!(10), ibig!(13));
 
-    //    assert_eq!(a.mul(Some(b)), c);
-    //}
+        assert_eq!(a.mul(Some(b)), c);
+    }
 
-    //#[test]
-    //fn test_example_pow() {
-    //    let samples = Vec::from([7, 11, 13, 17]);
-    //    let mut sets: Vec<Vec<u128>> = Vec::new();
+    #[test]
+    fn test_example_pow() {
+        let samples = Vec::from([7, 11, 13, 17]);
+        let mut sets: Vec<Vec<u128>> = Vec::new();
 
-    //    for p in samples {
-    //        let pow_p: Vec<u128> = (1..=p - 1).map(|n: u128| n.pow(p as u32 - 1) % p).collect();
-    //        sets.push(pow_p);
-    //    }
+        for p in samples {
+            let pow_p: Vec<u128> = (1..=p - 1).map(|n: u128| n.pow(p as u32 - 1) % p).collect();
+            sets.push(pow_p);
+        }
 
-    //    println!("{sets:?}");
-    //}
+        println!("{sets:?}");
+    }
 
-    //#[test]
-    //fn test_pow() {
-    //    let a = FieldElement::new(7, 13);
-    //    let b = FieldElement::new(8, 13);
+    #[test]
+    fn test_pow() {
+        let a = FieldElement::new(ibig!(7), ibig!(13));
+        let b = FieldElement::new(ibig!(8), ibig!(13));
 
-    //    assert_eq!(a.pow(-3), b);
-    //}
+        assert_eq!(a.pow(9), b);
+    }
 
-    //#[test]
-    //fn test_true_dev() {
-    //    let mut a = FieldElement::new(2, 19);
-    //    let mut b = FieldElement::new(7, 19);
-    //    let mut c = FieldElement::new(3, 19);
+    #[test]
+    fn test_true_div() {
+        let mut a = FieldElement::new(ibig!(2), ibig!(19));
+        let mut b = FieldElement::new(ibig!(7), ibig!(19));
+        let mut c = FieldElement::new(ibig!(3), ibig!(19));
 
-    //    assert_eq!(a.true_dev(Some(b)), c);
+        assert_eq!(a.true_div(Some(b)), c);
 
-    //    a = FieldElement::new(7, 19);
-    //    b = FieldElement::new(5, 19);
-    //    c = FieldElement::new(9, 19);
+        a = FieldElement::new(ibig!(7), ibig!(19));
+        b = FieldElement::new(ibig!(5), ibig!(19));
+        c = FieldElement::new(ibig!(9), ibig!(19));
 
-    //    assert_eq!(a.true_dev(Some(b)), c);
-    //}
+        assert_eq!(a.true_div(Some(b)), c);
+    }
 }
