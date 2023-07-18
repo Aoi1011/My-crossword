@@ -4,8 +4,8 @@
 
 use crate::{
     ec_param::{EcParam, ParamOp},
+    ecc::{EcAxis, EcOp, Point},
     number::Number,
-    EcAxis, EcOp, Point,
 };
 
 /// Elliptic curve (Affine)

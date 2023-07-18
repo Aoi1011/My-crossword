@@ -3,6 +3,7 @@ use std::ops::Add;
 use finite_fields::FieldElement;
 use ibig::ibig;
 
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
     pub x: Option<FieldElement>,
