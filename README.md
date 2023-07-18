@@ -19,6 +19,22 @@ p = 19
 
 
 ## Elliptic Curves
+the elliptic curve used in Bitcoin is called secp256k1
+
+y^2 = x^3 + 7
+
+### Point Addition
+Point addition is where we can do an operation on two of the points on the curve and get a third point, also on the curve. 
+
+
+### Math of Point Addition
+Point addition satisfies certain properties that we associate with addition
+- Identity
+- Commutativity
+- Associativity
+- Invertibility
+
+
 
 ## Elliptic Curve Cryptography
 
