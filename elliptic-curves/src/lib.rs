@@ -3,6 +3,9 @@ use std::ops::Add;
 use finite_fields::FieldElement;
 use ibig::ibig;
 
+const A: &[u8; 64] = b"0000000000000000000000000000000000000000000000000000000000000000";
+const B: &[u8; 64] = b"0000000000000000000000000000000000000000000000000000000000000007";
+const N: &[u8; 64] = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
@@ -17,9 +20,21 @@ impl Point {
     pub fn new(
         x: Option<FieldElement>,
         y: Option<FieldElement>,
-        a: FieldElement,
-        b: FieldElement,
+        a: Option<FieldElement>,
+        b: Option<FieldElement>,
     ) -> Self {
+        let a = if a.is_none() {
+            FieldElement::new(FieldElement::from_bytes_radix(A, 16), None)
+        } else {
+            a.unwrap()
+        };
+
+        let b = if b.is_none() {
+            FieldElement::new(FieldElement::from_bytes_radix(B, 16), None)
+        } else {
+            b.unwrap()
+        };
+
         if let (Some(x_field), Some(y_field)) = (x.clone(), y.clone()) {
             if y_field.pow(2) != x_field.pow(3).add(&a.mul(&x_field)).add(&b) {
                 panic!("({:?}, {:?}) is not on the curve", x_field, y_field);
@@ -92,7 +107,8 @@ impl Add for Point {
                     .mul(&self_x.pow(2))
                     .add(&self.a)
                     .true_div(Some(
-                        FieldElement::new(ibig!(2), Some(x_prime.clone())).mul(&self.y.clone().unwrap()),
+                        FieldElement::new(ibig!(2), Some(x_prime.clone()))
+                            .mul(&self.y.clone().unwrap()),
                     ));
                 // x3 = s ^ 2 - 2x1
                 let x3 = s

@@ -118,7 +118,7 @@ impl FieldElement {
         }
     }
 
-    fn from_bytes_radix(buf: &[u8], radix: u32) -> IBig {
+    pub fn from_bytes_radix(buf: &[u8], radix: u32) -> IBig {
         let s = str::from_utf8(buf).ok().unwrap();
         IBig::from_str_radix(s, radix).unwrap()
     }
