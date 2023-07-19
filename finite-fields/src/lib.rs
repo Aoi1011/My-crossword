@@ -1,4 +1,8 @@
+use std::str;
+
 use ibig::{ibig, IBig};
+
+const P: &[u8; 64] = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FieldElement {
@@ -7,7 +11,13 @@ pub struct FieldElement {
 }
 
 impl FieldElement {
-    pub fn new(num: IBig, prime: IBig) -> Self {
+    pub fn new(num: IBig, prime: Option<IBig>) -> Self {
+        let prime = if prime.is_none() {
+            Self::from_bytes_radix(P, 16)
+        } else {
+            prime.unwrap()
+        };
+
         if num >= prime {
             panic!("Num {} not in field range 0 to {}", num, prime - 1);
         }
@@ -107,6 +117,11 @@ impl FieldElement {
             result
         }
     }
+
+    fn from_bytes_radix(buf: &[u8], radix: u32) -> IBig {
+        let s = str::from_utf8(buf).ok().unwrap();
+        IBig::from_str_radix(s, radix).unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -115,21 +130,21 @@ mod tests {
 
     #[test]
     fn test_fieldelement_eq() {
-        let element = FieldElement::new(ibig!(7), ibig!(13));
-        let other = FieldElement::new(ibig!(6), ibig!(13));
+        let element = FieldElement::new(ibig!(7), Some(ibig!(13)));
+        let other = FieldElement::new(ibig!(6), Some(ibig!(13)));
         assert!(!element.equal(Some(other)));
     }
 
     #[test]
     fn test_fieldelement_ne() {
-        let element = FieldElement::new(ibig!(7), ibig!(13));
-        let other = FieldElement::new(ibig!(6), ibig!(13));
+        let element = FieldElement::new(ibig!(7), Some(ibig!(13)));
+        let other = FieldElement::new(ibig!(6), Some(ibig!(13)));
         assert!(element.ne(Some(other)));
     }
 
     #[test]
     fn test_calculate_modulo() {
-        let prime = ibig!(57);
+        let prime = Some(ibig!(57));
 
         let field_element_1 = FieldElement::new(ibig!(44), prime.clone());
         assert_eq!(
@@ -158,18 +173,20 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let a = FieldElement::new(ibig!(7), ibig!(13));
-        let b = FieldElement::new(ibig!(12), ibig!(13));
-        let c = FieldElement::new(ibig!(6), ibig!(13));
+        let prime = Some(ibig!(13));
+        let a = FieldElement::new(ibig!(7), prime.clone());
+        let b = FieldElement::new(ibig!(12), prime.clone());
+        let c = FieldElement::new(ibig!(6), prime);
 
         assert_eq!(a.add(Some(b)), c);
     }
 
     #[test]
     fn test_mul() {
-        let a = FieldElement::new(ibig!(3), ibig!(13));
-        let b = FieldElement::new(ibig!(12), ibig!(13));
-        let c = FieldElement::new(ibig!(10), ibig!(13));
+        let prime = Some(ibig!(13));
+        let a = FieldElement::new(ibig!(3), prime.clone());
+        let b = FieldElement::new(ibig!(12), prime.clone());
+        let c = FieldElement::new(ibig!(10), prime);
 
         assert_eq!(a.mul(Some(b)), c);
     }
@@ -189,23 +206,24 @@ mod tests {
 
     #[test]
     fn test_pow() {
-        let a = FieldElement::new(ibig!(7), ibig!(13));
-        let b = FieldElement::new(ibig!(8), ibig!(13));
+        let a = FieldElement::new(ibig!(7), Some(ibig!(13)));
+        let b = FieldElement::new(ibig!(8), Some(ibig!(13)));
 
         assert_eq!(a.pow(9), b);
     }
 
     #[test]
     fn test_true_div() {
-        let mut a = FieldElement::new(ibig!(2), ibig!(19));
-        let mut b = FieldElement::new(ibig!(7), ibig!(19));
-        let mut c = FieldElement::new(ibig!(3), ibig!(19));
+        let prime = Some(ibig!(19));
+        let mut a = FieldElement::new(ibig!(2), prime.clone());
+        let mut b = FieldElement::new(ibig!(7), prime.clone());
+        let mut c = FieldElement::new(ibig!(3), prime.clone());
 
         assert_eq!(a.true_div(Some(b)), c);
 
-        a = FieldElement::new(ibig!(7), ibig!(19));
-        b = FieldElement::new(ibig!(5), ibig!(19));
-        c = FieldElement::new(ibig!(9), ibig!(19));
+        a = FieldElement::new(ibig!(7), prime.clone());
+        b = FieldElement::new(ibig!(5), prime.clone());
+        c = FieldElement::new(ibig!(9), prime);
 
         assert_eq!(a.true_div(Some(b)), c);
     }

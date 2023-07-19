@@ -88,16 +88,16 @@ impl Add for Point {
             (Some(self_x), Some(other_x)) if self_x == other_x && self.y == rhs.y => {
                 let x_prime = self_x.clone().prime;
                 // s = (3x1 ^ 2 + a) / (2y1)
-                let s = FieldElement::new(ibig!(3), x_prime.clone())
+                let s = FieldElement::new(ibig!(3), Some(x_prime.clone()))
                     .mul(&self_x.pow(2))
                     .add(&self.a)
                     .true_div(Some(
-                        FieldElement::new(ibig!(2), x_prime.clone()).mul(&self.y.clone().unwrap()),
+                        FieldElement::new(ibig!(2), Some(x_prime.clone())).mul(&self.y.clone().unwrap()),
                     ));
                 // x3 = s ^ 2 - 2x1
                 let x3 = s
                     .pow(2)
-                    .sub(&FieldElement::new(ibig!(2), x_prime.clone()).mul(&self_x));
+                    .sub(&FieldElement::new(ibig!(2), Some(x_prime.clone())).mul(&self_x));
                 // y3 = s(x1 - x3) - y1
                 let y3 = s.mul(&self_x.sub(&x3)).sub(&self.y.unwrap());
 
@@ -129,10 +129,12 @@ mod tests {
 
     #[test]
     fn test_equal() {
-        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
-        let field_element2 = FieldElement::new(ibig!(-1), ibig!(27));
-        let a = FieldElement::new(ibig!(5), ibig!(27));
-        let b = FieldElement::new(ibig!(7), ibig!(27));
+        let prime = Some(ibig!(27));
+
+        let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
+        let field_element2 = FieldElement::new(ibig!(-1), prime.clone());
+        let a = FieldElement::new(ibig!(5), prime.clone());
+        let b = FieldElement::new(ibig!(7), prime.clone());
         let point1 = Point::new(
             Some(field_element1.clone()),
             Some(field_element1),
@@ -146,10 +148,12 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
-        let field_element2 = FieldElement::new(ibig!(1), ibig!(27));
-        let a = FieldElement::new(ibig!(5), ibig!(27));
-        let b = FieldElement::new(ibig!(7), ibig!(27));
+        let prime = Some(ibig!(27));
+
+        let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
+        let field_element2 = FieldElement::new(ibig!(1), prime.clone());
+        let a = FieldElement::new(ibig!(5), prime.clone());
+        let b = FieldElement::new(ibig!(7), prime.clone());
         let point1 = Point::new(
             Some(field_element1.clone()),
             Some(field_element1.clone()),
@@ -167,7 +171,8 @@ mod tests {
         assert_eq!(point1 + point2, inf);
 
         // x1 != x2
-        let prime = ibig!(223);
+        prime = Some(ibig!(223));
+
         let a = FieldElement::new(ibig!(0), prime.clone());
         let b = FieldElement::new(ibig!(7), prime.clone());
         let field_element1 = FieldElement::new(ibig!(170), prime.clone());

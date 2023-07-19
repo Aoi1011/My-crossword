@@ -1,7 +1,8 @@
 use std::fmt;
 
 use num_traits::{One, Zero};
-use number::Number;
+
+use crate::number::Number;
 
 #[derive(Clone, PartialEq, Copy)]
 pub enum EcAxis {

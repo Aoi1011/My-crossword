@@ -150,10 +150,20 @@ dependencies = [
 name = "ecc"
 version = "0.1.0"
 dependencies = [
+ "elliptic-curves",
+ "finite-fields",
  "ibig",
  "num-bigint",
  "num-traits",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "elliptic-curves"
+version = "0.1.0"
+dependencies = [
+ "finite-fields",
+ "ibig",
 ]
 
 [[package]]
