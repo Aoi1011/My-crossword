@@ -15,9 +15,7 @@ pub mod ecc_a;
 pub mod ecc_j;
 pub mod number;
 
-
 #[derive(Debug, Clone)]
 pub struct S256Point(Point);
 
-impl S256Point {
-}
+impl S256Point {}
