@@ -65,6 +65,13 @@ impl Point {
         }
         result
     }
+
+    pub fn is_infinity(&self) -> bool {
+        if self.x.is_none() && self.y.is_none() {
+            return true;
+        }
+        false
+    }
 }
 
 impl Add for Point {
@@ -217,5 +224,24 @@ mod tests {
         let point3 = Point::new(Some(field_element5), Some(field_element6), Some(a), Some(b));
 
         assert_eq!(point1 + point2, point3);
+    }
+
+    #[test]
+    fn test_infinity() {
+        const N: &[u8; 64] = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
+        let x = b"0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let y = b"0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
+
+        let field_x = FieldElement::new(FieldElement::from_bytes_radix(x, 16), None);
+        let field_y = FieldElement::new(FieldElement::from_bytes_radix(y, 16), None);
+        let point_g = Point::new(Some(field_x.clone()), Some(field_y.clone()), None, None);
+
+        let n = FieldElement::from_bytes_radix(N, 16);
+
+        let temp_x = FieldElement::new(field_x.num * n.clone() % field_x.prime, None);
+        let temp_y = FieldElement::new(field_y.num * n % field_y.prime, None);
+        let temp = Point::new(Some(temp_x), Some(temp_y), None, None);
+
+        assert!(point_g.x == temp.x && point_g.y != temp.y);
     }
 }
