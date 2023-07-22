@@ -55,7 +55,7 @@ impl Point {
     pub fn rmul(&self, coefficient: u32) -> Self {
         let mut coef = coefficient;
         let mut current = self.clone();
-        let mut result = Self::new(None, None, self.a.clone(), self.b.clone());
+        let mut result = Self::new(None, None, Some(self.a.clone()), Some(self.b.clone()));
         while coef != 0 {
             if coef & 1 == 1 {
                 result = result + current.clone();
@@ -154,17 +154,22 @@ mod tests {
         let point1 = Point::new(
             Some(field_element1.clone()),
             Some(field_element1),
-            a.clone(),
-            b.clone(),
+            Some(a.clone()),
+            Some(b.clone()),
         );
-        let point2 = Point::new(Some(field_element2.clone()), Some(field_element2), a, b);
+        let point2 = Point::new(
+            Some(field_element2.clone()),
+            Some(field_element2),
+            Some(a),
+            Some(b),
+        );
 
         assert!(point1.equal(Some(point2)));
     }
 
     #[test]
     fn test_add() {
-        let prime = Some(ibig!(27));
+        let mut prime = Some(ibig!(27));
 
         let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
         let field_element2 = FieldElement::new(ibig!(1), prime.clone());
@@ -173,16 +178,16 @@ mod tests {
         let point1 = Point::new(
             Some(field_element1.clone()),
             Some(field_element1.clone()),
-            a.clone(),
-            b.clone(),
+            Some(a.clone()),
+            Some(b.clone()),
         );
         let point2 = Point::new(
             Some(field_element1),
             Some(field_element2),
-            a.clone(),
-            b.clone(),
+            Some(a.clone()),
+            Some(b.clone()),
         );
-        let inf = Point::new(None, None, a, b);
+        let inf = Point::new(None, None, Some(a), Some(b));
 
         assert_eq!(point1 + point2, inf);
 
@@ -200,16 +205,16 @@ mod tests {
         let point1 = Point::new(
             Some(field_element1),
             Some(field_element2),
-            a.clone(),
-            b.clone(),
+            Some(a.clone()),
+            Some(b.clone()),
         );
         let point2 = Point::new(
             Some(field_element3),
             Some(field_element4),
-            a.clone(),
-            b.clone(),
+            Some(a.clone()),
+            Some(b.clone()),
         );
-        let point3 = Point::new(Some(field_element5), Some(field_element6), a, b);
+        let point3 = Point::new(Some(field_element5), Some(field_element6), Some(a), Some(b));
 
         assert_eq!(point1 + point2, point3);
     }
