@@ -1,26 +1,36 @@
-use std::str;
+use std::str::{self, FromStr};
 
-use ethereum_types::U512;
-use ibig::{ibig, IBig};
+use ethers_core::types::I256;
+use ibig::IBig;
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
+macro_rules! i256 {
+    ($val: expr) => {
+        I256::from($val)
+    };
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct FieldElement {
-    pub num: U512,
-    pub prime: U512,
+    pub num: I256,
+    pub prime: I256,
 }
 
 impl FieldElement {
-    pub fn new(num: U512, prime: Option<U512>) -> Self {
+    pub fn new(num: I256, prime: Option<I256>) -> Self {
         let prime = if prime.is_none() {
-            U512::from_str_radix(P, 16).unwrap()
+            I256::from_str(P).unwrap()
         } else {
             prime.unwrap()
         };
 
         if num >= prime {
-            panic!("Num {} not in field range 0 to {}", num, prime - 1);
+            panic!(
+                "Num {} not in field range 0 to {}",
+                num,
+                prime - I256::one()
+            );
         }
         Self { num, prime }
     }
@@ -42,7 +52,7 @@ impl FieldElement {
             panic!("cannot add two numbers in different Fields");
         }
 
-        let num = self.modulo(&(&self.num + &other.num));
+        let num = self.modulo(&(self.num + other.num));
         Self {
             num,
             prime: self.prime.clone(),
@@ -54,7 +64,7 @@ impl FieldElement {
             panic!("cannot subtract two numbers in different Fields");
         }
 
-        let num = self.modulo(&(&self.num - &other.num));
+        let num = self.modulo(&(self.num - other.num));
         Self {
             num,
             prime: self.prime.clone(),
@@ -66,14 +76,14 @@ impl FieldElement {
             panic!("cannot multiply two numbers in different Fields");
         }
 
-        let num = self.modulo(&(&self.num * &other.num));
+        let num = self.modulo(&(self.num * other.num));
         Self {
             num,
             prime: self.prime.clone(),
         }
     }
 
-    pub fn pow(&self, exp: U512) -> Self {
+    pub fn pow(&self, exp: u32) -> Self {
         let num = self.modulo(&self.num.pow(exp));
         Self {
             num,
@@ -90,8 +100,8 @@ impl FieldElement {
         // self.num.pow(p-1) % p == 1
         // this means:
         // 1/n == pow(n, p-2, p) in Python
-        let exp = other.prime - U512::one() + U512::one();
-        let num_pow = other.pow(exp);
+        let exp = other.prime - I256::one() + I256::one();
+        let num_pow = other.pow(exp.as_u32());
         let result = self.num.clone() * num_pow.num;
         Self {
             num: result % self.prime.clone(),
@@ -99,9 +109,9 @@ impl FieldElement {
         }
     }
 
-    fn modulo(&self, b: &U512) -> U512 {
-        let result = b % self.prime.clone();
-        if result < U512::zero() {
+    fn modulo(&self, b: &I256) -> I256 {
+        let result = *b % self.prime.clone();
+        if result < I256::zero() {
             result + self.prime.clone()
         } else {
             result
@@ -116,58 +126,50 @@ impl FieldElement {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
     fn test_fieldelement_eq() {
-        let element = FieldElement::new(
-            U512::from_str("10").unwrap(),
-            Some(U512::from_str("13").unwrap()),
-        );
-        let other = FieldElement::new(
-            U512::from_str("6").unwrap(),
-            Some(U512::from_str("13").unwrap()),
-        );
+        let element = FieldElement::new(i256!(10), Some(i256!(13)));
+        let other = FieldElement::new(i256!(6), Some(i256!(13)));
         assert!(!element.equal(&other));
     }
 
-    // #[test]
-    // fn test_fieldelement_ne() {
-    //     let element = FieldElement::new(ibig!(7), Some(ibig!(13)));
-    //     let other = FieldElement::new(ibig!(6), Some(ibig!(13)));
-    //     assert!(element.ne(Some(other)));
-    // }
+    #[test]
+    fn test_fieldelement_ne() {
+        let element = FieldElement::new(i256!(6), Some(i256!(13)));
+        let other = FieldElement::new(i256!(7), Some(i256!(13)));
+        assert!(element.ne(&other));
+    }
 
-    // #[test]
-    // fn test_calculate_modulo() {
-    //     let prime = Some(ibig!(57));
+    #[test]
+    fn test_calculate_modulo() {
+        let prime = Some(i256!(57));
 
-    //     let field_element_1 = FieldElement::new(ibig!(44), prime.clone());
-    //     assert_eq!(
-    //         ibig!(20),
-    //         field_element_1.modulo(&(&field_element_1.num + ibig!(33)))
-    //     );
+        let field_element_1 = FieldElement::new(i256!(44), prime.clone());
+        assert_eq!(
+            i256!(20),
+            field_element_1.modulo(&(field_element_1.num + i256!(33)))
+        );
 
-    //     let field_element_2 = FieldElement::new(ibig!(9), prime.clone());
-    //     assert_eq!(
-    //         ibig!(37),
-    //         field_element_2.modulo(&(&field_element_2.num + ibig!(-29)))
-    //     );
+        let field_element_2 = FieldElement::new(i256!(9), prime.clone());
+        assert_eq!(
+            i256!(37),
+            field_element_2.modulo(&(field_element_2.num + i256!(-29)))
+        );
 
-    //     let field_element_3 = FieldElement::new(ibig!(17), prime.clone());
-    //     assert_eq!(
-    //         ibig!(51),
-    //         field_element_3.modulo(&(&field_element_3.num + ibig!(42) + ibig!(49)))
-    //     );
+        let field_element_3 = FieldElement::new(i256!(17), prime.clone());
+        assert_eq!(
+            i256!(51),
+            field_element_3.modulo(&(field_element_3.num + i256!(42) + i256!(49)))
+        );
 
-    //     let field_element_4 = FieldElement::new(ibig!(52), prime.clone());
-    //     assert_eq!(
-    //         ibig!(41),
-    //         field_element_4.modulo(&(&field_element_4.num + ibig!(-30) - ibig!(38))) % prime
-    //     );
-    // }
+        let field_element_4 = FieldElement::new(i256!(52), prime.clone());
+        assert_eq!(
+            i256!(41),
+            field_element_4.modulo(&(field_element_4.num + i256!(-30) - i256!(38)))
+        );
+    }
 
     // #[test]
     // fn test_add() {
