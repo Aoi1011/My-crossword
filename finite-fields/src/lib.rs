@@ -5,12 +5,6 @@ use ibig::IBig;
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
-macro_rules! i256 {
-    ($val: expr) => {
-        I256::from($val)
-    };
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct FieldElement {
     pub num: I256,
@@ -100,7 +94,7 @@ impl FieldElement {
         // self.num.pow(p-1) % p == 1
         // this means:
         // 1/n == pow(n, p-2, p) in Python
-        let exp = other.prime - I256::one() + I256::one();
+        let exp = other.prime - (I256::one() + I256::one());
         let num_pow = other.pow(exp.as_u32());
         let result = self.num.clone() * num_pow.num;
         Self {
@@ -127,6 +121,12 @@ impl FieldElement {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    macro_rules! i256 {
+        ($val: expr) => {
+            I256::from($val)
+        };
+    }
 
     #[test]
     fn test_fieldelement_eq() {
@@ -171,60 +171,60 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_add() {
-    //     let prime = Some(ibig!(13));
-    //     let a = FieldElement::new(ibig!(7), prime.clone());
-    //     let b = FieldElement::new(ibig!(12), prime.clone());
-    //     let c = FieldElement::new(ibig!(6), prime);
+    #[test]
+    fn test_add() {
+        let prime = Some(i256!(13));
+        let a = FieldElement::new(i256!(7), prime.clone());
+        let b = FieldElement::new(i256!(12), prime.clone());
+        let c = FieldElement::new(i256!(6), prime);
 
-    //     assert_eq!(a.add(Some(b)), c);
-    // }
+        assert_eq!(a.add(&b), c);
+    }
 
-    // #[test]
-    // fn test_mul() {
-    //     let prime = Some(ibig!(13));
-    //     let a = FieldElement::new(ibig!(3), prime.clone());
-    //     let b = FieldElement::new(ibig!(12), prime.clone());
-    //     let c = FieldElement::new(ibig!(10), prime);
+    #[test]
+    fn test_mul() {
+        let prime = Some(i256!(13));
+        let a = FieldElement::new(i256!(3), prime.clone());
+        let b = FieldElement::new(i256!(12), prime.clone());
+        let c = FieldElement::new(i256!(10), prime);
 
-    //     assert_eq!(a.mul(Some(b)), c);
-    // }
+        assert_eq!(a.mul(&b), c);
+    }
 
-    // #[test]
-    // fn test_example_pow() {
-    //     let samples = Vec::from([7, 11, 13, 17]);
-    //     let mut sets: Vec<Vec<u128>> = Vec::new();
+    #[test]
+    fn test_example_pow() {
+        let samples = Vec::from([7, 11, 13, 17]);
+        let mut sets: Vec<Vec<u128>> = Vec::new();
 
-    //     for p in samples {
-    //         let pow_p: Vec<u128> = (1..=p - 1).map(|n: u128| n.pow(p as u32 - 1) % p).collect();
-    //         sets.push(pow_p);
-    //     }
+        for p in samples {
+            let pow_p: Vec<u128> = (1..=p - 1).map(|n: u128| n.pow(p as u32 - 1) % p).collect();
+            sets.push(pow_p);
+        }
 
-    //     println!("{sets:?}");
-    // }
+        println!("{sets:?}");
+    }
 
-    // #[test]
-    // fn test_pow() {
-    //     let a = FieldElement::new(ibig!(7), Some(ibig!(13)));
-    //     let b = FieldElement::new(ibig!(8), Some(ibig!(13)));
+    #[test]
+    fn test_pow() {
+        let a = FieldElement::new(i256!(7), Some(i256!(13)));
+        let b = FieldElement::new(i256!(8), Some(i256!(13)));
 
-    //     assert_eq!(a.pow(9), b);
-    // }
+        assert_eq!(a.pow(9), b);
+    }
 
-    // #[test]
-    // fn test_true_div() {
-    //     let prime = Some(ibig!(19));
-    //     let mut a = FieldElement::new(ibig!(2), prime.clone());
-    //     let mut b = FieldElement::new(ibig!(7), prime.clone());
-    //     let mut c = FieldElement::new(ibig!(3), prime.clone());
+    #[test]
+    fn test_true_div() {
+        let prime = Some(i256!(19));
+        let mut a = FieldElement::new(i256!(2), prime.clone());
+        let mut b = FieldElement::new(i256!(7), prime.clone());
+        let mut c = FieldElement::new(i256!(3), prime.clone());
 
-    //     assert_eq!(a.true_div(Some(b)), c);
+        assert_eq!(a.true_div(&b), c);
 
-    //     a = FieldElement::new(ibig!(7), prime.clone());
-    //     b = FieldElement::new(ibig!(5), prime.clone());
-    //     c = FieldElement::new(ibig!(9), prime);
+        a = FieldElement::new(i256!(7), prime.clone());
+        b = FieldElement::new(i256!(5), prime.clone());
+        c = FieldElement::new(i256!(9), prime);
 
-    //     assert_eq!(a.true_div(Some(b)), c);
-    // }
+        assert_eq!(a.true_div(&b), c);
+    }
 }
