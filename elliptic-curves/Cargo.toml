@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 finite-fields = { path = "../finite-fields" }
 ibig = "0.3.6"
+ethers-core = "2.0.8"
+revm-primitives = "1.1.2"

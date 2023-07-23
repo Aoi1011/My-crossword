@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 ibig = "0.3.6"
 ethereum-types = "0.14.1"
-ethers-core = "2.0.8"

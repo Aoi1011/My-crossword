@@ -1,20 +1,19 @@
 use std::str::{self, FromStr};
 
-use ethers_core::types::I256;
-use ibig::IBig;
+use ethereum_types::U256;
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FieldElement {
-    pub num: I256,
-    pub prime: I256,
+    pub num: U256,
+    pub prime: U256,
 }
 
 impl FieldElement {
-    pub fn new(num: I256, prime: Option<I256>) -> Self {
+    pub fn new(num: U256, prime: Option<U256>) -> Self {
         let prime = if prime.is_none() {
-            I256::from_str(P).unwrap()
+            U256::from_str(P).unwrap()
         } else {
             prime.unwrap()
         };
@@ -23,7 +22,7 @@ impl FieldElement {
             panic!(
                 "Num {} not in field range 0 to {}",
                 num,
-                prime - I256::one()
+                prime - U256::one()
             );
         }
         Self { num, prime }
@@ -77,7 +76,7 @@ impl FieldElement {
         }
     }
 
-    pub fn pow(&self, exp: u32) -> Self {
+    pub fn pow(&self, exp: U256) -> Self {
         let num = self.modulo(&self.num.pow(exp));
         Self {
             num,
@@ -94,8 +93,8 @@ impl FieldElement {
         // self.num.pow(p-1) % p == 1
         // this means:
         // 1/n == pow(n, p-2, p) in Python
-        let exp = other.prime - (I256::one() + I256::one());
-        let num_pow = other.pow(exp.as_u32());
+        let exp = other.prime - (U256::one() + U256::one());
+        let num_pow = other.pow(exp);
         let result = self.num.clone() * num_pow.num;
         Self {
             num: result % self.prime.clone(),
@@ -103,18 +102,13 @@ impl FieldElement {
         }
     }
 
-    fn modulo(&self, b: &I256) -> I256 {
+    fn modulo(&self, b: &U256) -> U256 {
         let result = *b % self.prime.clone();
-        if result < I256::zero() {
+        if result < U256::zero() {
             result + self.prime.clone()
         } else {
             result
         }
-    }
-
-    pub fn from_bytes_radix(buf: &[u8], radix: u32) -> IBig {
-        let s = str::from_utf8(buf).ok().unwrap();
-        IBig::from_str_radix(s, radix).unwrap()
     }
 }
 
@@ -122,71 +116,59 @@ impl FieldElement {
 mod tests {
     use super::*;
 
-    macro_rules! i256 {
+    macro_rules! u256 {
         ($val: expr) => {
-            I256::from($val)
+            U256::from($val)
         };
     }
 
     #[test]
     fn test_fieldelement_eq() {
-        let element = FieldElement::new(i256!(10), Some(i256!(13)));
-        let other = FieldElement::new(i256!(6), Some(i256!(13)));
+        let element = FieldElement::new(u256!(10), Some(u256!(13)));
+        let other = FieldElement::new(u256!(6), Some(u256!(13)));
         assert!(!element.equal(&other));
     }
 
     #[test]
     fn test_fieldelement_ne() {
-        let element = FieldElement::new(i256!(6), Some(i256!(13)));
-        let other = FieldElement::new(i256!(7), Some(i256!(13)));
+        let element = FieldElement::new(u256!(6), Some(u256!(13)));
+        let other = FieldElement::new(u256!(7), Some(u256!(13)));
         assert!(element.ne(&other));
     }
 
     #[test]
     fn test_calculate_modulo() {
-        let prime = Some(i256!(57));
+        let prime = Some(u256!(57));
 
-        let field_element_1 = FieldElement::new(i256!(44), prime.clone());
+        let field_element_1 = FieldElement::new(u256!(44), prime.clone());
         assert_eq!(
-            i256!(20),
-            field_element_1.modulo(&(field_element_1.num + i256!(33)))
+            u256!(20),
+            field_element_1.modulo(&(field_element_1.num + u256!(33)))
         );
 
-        let field_element_2 = FieldElement::new(i256!(9), prime.clone());
+        let field_element_3 = FieldElement::new(u256!(17), prime.clone());
         assert_eq!(
-            i256!(37),
-            field_element_2.modulo(&(field_element_2.num + i256!(-29)))
-        );
-
-        let field_element_3 = FieldElement::new(i256!(17), prime.clone());
-        assert_eq!(
-            i256!(51),
-            field_element_3.modulo(&(field_element_3.num + i256!(42) + i256!(49)))
-        );
-
-        let field_element_4 = FieldElement::new(i256!(52), prime.clone());
-        assert_eq!(
-            i256!(41),
-            field_element_4.modulo(&(field_element_4.num + i256!(-30) - i256!(38)))
+            u256!(51),
+            field_element_3.modulo(&(field_element_3.num + u256!(42) + u256!(49)))
         );
     }
 
     #[test]
     fn test_add() {
-        let prime = Some(i256!(13));
-        let a = FieldElement::new(i256!(7), prime.clone());
-        let b = FieldElement::new(i256!(12), prime.clone());
-        let c = FieldElement::new(i256!(6), prime);
+        let prime = Some(u256!(13));
+        let a = FieldElement::new(u256!(7), prime.clone());
+        let b = FieldElement::new(u256!(12), prime.clone());
+        let c = FieldElement::new(u256!(6), prime);
 
         assert_eq!(a.add(&b), c);
     }
 
     #[test]
     fn test_mul() {
-        let prime = Some(i256!(13));
-        let a = FieldElement::new(i256!(3), prime.clone());
-        let b = FieldElement::new(i256!(12), prime.clone());
-        let c = FieldElement::new(i256!(10), prime);
+        let prime = Some(u256!(13));
+        let a = FieldElement::new(u256!(3), prime.clone());
+        let b = FieldElement::new(u256!(12), prime.clone());
+        let c = FieldElement::new(u256!(10), prime);
 
         assert_eq!(a.mul(&b), c);
     }
@@ -206,24 +188,24 @@ mod tests {
 
     #[test]
     fn test_pow() {
-        let a = FieldElement::new(i256!(7), Some(i256!(13)));
-        let b = FieldElement::new(i256!(8), Some(i256!(13)));
+        let a = FieldElement::new(u256!(7), Some(u256!(13)));
+        let b = FieldElement::new(u256!(8), Some(u256!(13)));
 
-        assert_eq!(a.pow(9), b);
+        assert_eq!(a.pow(U256::from(9)), b);
     }
 
     #[test]
     fn test_true_div() {
-        let prime = Some(i256!(19));
-        let mut a = FieldElement::new(i256!(2), prime.clone());
-        let mut b = FieldElement::new(i256!(7), prime.clone());
-        let mut c = FieldElement::new(i256!(3), prime.clone());
+        let prime = Some(u256!(19));
+        let mut a = FieldElement::new(u256!(2), prime.clone());
+        let mut b = FieldElement::new(u256!(7), prime.clone());
+        let mut c = FieldElement::new(u256!(3), prime.clone());
 
         assert_eq!(a.true_div(&b), c);
 
-        a = FieldElement::new(i256!(7), prime.clone());
-        b = FieldElement::new(i256!(5), prime.clone());
-        c = FieldElement::new(i256!(9), prime);
+        a = FieldElement::new(u256!(7), prime.clone());
+        b = FieldElement::new(u256!(5), prime.clone());
+        c = FieldElement::new(u256!(9), prime);
 
         assert_eq!(a.true_div(&b), c);
     }
