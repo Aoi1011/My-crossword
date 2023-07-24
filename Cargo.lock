@@ -242,8 +242,8 @@ dependencies = [
 name = "finite-fields"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
- "ibig",
+ "num-bigint",
+ "num-traits",
 ]
 
 [[package]]

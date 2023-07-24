@@ -1,19 +1,23 @@
-use std::str::{self, FromStr};
+use std::{
+    ops::{Add, Sub, Mul, Div},
+    str::{self, FromStr},
+};
 
-use ethereum_types::U256;
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct FieldElement {
-    pub num: U256,
-    pub prime: U256,
+    pub num: BigUint,
+    pub prime: BigUint,
 }
 
 impl FieldElement {
-    pub fn new(num: U256, prime: Option<U256>) -> Self {
+    pub fn new(num: BigUint, prime: Option<BigUint>) -> Self {
         let prime = if prime.is_none() {
-            U256::from_str(P).unwrap()
+            BigUint::from_str(P).unwrap()
         } else {
             prime.unwrap()
         };
@@ -22,61 +26,59 @@ impl FieldElement {
             panic!(
                 "Num {} not in field range 0 to {}",
                 num,
-                prime - U256::one()
+                prime - BigUint::one()
             );
         }
         Self { num, prime }
     }
 
-    pub fn repr(&self) {
-        println!("FieldElement_{}({})", self.prime, self.num);
+    pub fn zero(prime: BigUint) -> Self {
+        Self {
+            num: BigUint::zero(),
+            prime,
+        }
     }
 
-    pub fn equal(&self, other: &FieldElement) -> bool {
-        self.eq(other)
+    pub fn get_prime(&self) -> BigUint {
+        self.prime.clone()
+    }
+
+    pub fn get_number(&self) -> BigUint {
+        self.num.clone()
+    }
+
+    pub fn to_the_power_of(&self, exponent: BigUint) -> Self {
+        let exp = exponent % (self.prime.clone() - BigUint::one());
+        let new_num = Self::mod_pow(self.num.clone(), exp, self.prime.clone());
+        Self {
+            num: new_num,
+            prime: self.prime.clone(),
+        }
+    }
+
+    pub fn mod_pow(base: BigUint, mut exp:BigUint, modulus: BigUint) -> BigUint {
+        if modulus == BigUint::one() {
+            return BigUint::zero();
+        }
+
+        let mut result = BigUint::one();
+        let mut base = base.clone() % modulus.clone();
+        while exp > BigUint::zero() {
+            if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
+                result = result * base.clone() % modulus.clone();
+            }
+            exp = exp /(BigUint::one() + BigUint::one());
+            base = base.clone() * base % modulus.clone();
+        }
+
+        result
     }
 
     pub fn ne(&self, other: &FieldElement) -> bool {
         self.num != other.num || self.prime != other.prime
     }
 
-    pub fn add(&self, other: &FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("cannot add two numbers in different Fields");
-        }
-
-        let num = self.modulo(&(self.num + other.num));
-        Self {
-            num,
-            prime: self.prime.clone(),
-        }
-    }
-
-    pub fn sub(&self, other: &FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("cannot subtract two numbers in different Fields");
-        }
-
-        let num = self.modulo(&(self.num - other.num));
-        Self {
-            num,
-            prime: self.prime.clone(),
-        }
-    }
-
-    pub fn mul(&self, other: &FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("cannot multiply two numbers in different Fields");
-        }
-
-        let num = self.modulo(&(self.num * other.num));
-        Self {
-            num,
-            prime: self.prime.clone(),
-        }
-    }
-
-    pub fn pow(&self, exp: U256) -> Self {
+    pub fn pow(&self, exp: u32) -> Self {
         let num = self.modulo(&self.num.pow(exp));
         Self {
             num,
@@ -84,27 +86,9 @@ impl FieldElement {
         }
     }
 
-    pub fn true_div(&self, other: &FieldElement) -> Self {
-        if self.prime != other.prime {
-            panic!("cannot divide two numbers in different Fields");
-        }
-
-        // use Fermat's little theorem
-        // self.num.pow(p-1) % p == 1
-        // this means:
-        // 1/n == pow(n, p-2, p) in Python
-        let exp = other.prime - (U256::one() + U256::one());
-        let num_pow = other.pow(exp);
-        let result = self.num.clone() * num_pow.num;
-        Self {
-            num: result % self.prime.clone(),
-            prime: self.prime.clone(),
-        }
-    }
-
-    fn modulo(&self, b: &U256) -> U256 {
-        let result = *b % self.prime.clone();
-        if result < U256::zero() {
+    fn modulo(&self, b: &BigUint) -> BigUint {
+        let result = b % self.prime.clone();
+        if result < BigUint::zero() {
             result + self.prime.clone()
         } else {
             result
@@ -112,65 +96,147 @@ impl FieldElement {
     }
 }
 
+impl PartialEq for FieldElement {
+    fn eq(&self, other: &FieldElement) -> bool {
+        self.num == other.num && self.prime == other.prime
+    }
+}
+
+impl Eq for FieldElement {}
+
+impl Add for FieldElement {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        if self.prime != rhs.prime {
+            panic!("cannot add two numbers in different Fields");
+        }
+
+        let num = self.modulo(&(self.num.clone() + rhs.num));
+        Self {
+            num,
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+impl Sub for FieldElement {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        if self.prime != rhs.prime {
+            panic!("cannot subtract two numbers in different Fields");
+        }
+
+        let num = self.modulo(&(self.num.clone() - rhs.num));
+        Self {
+            num,
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+impl Mul for FieldElement {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        if self.prime != rhs.prime {
+            panic!("cannot multiply two numbers in different Fields");
+        }
+
+        let num = self.modulo(&(self.num.clone() * rhs.num));
+        Self {
+            num,
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+impl Div for FieldElement {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        if self.prime != rhs.prime {
+            panic!("cannot divide two numbers in different Fields");
+        }
+
+        // use Fermat's little theorem
+        // self.num.pow(p-1) % p == 1
+        // this means:
+        // 1/n == pow(n, p-2, p) in Python
+        let exp = rhs.prime.clone() - (BigUint::one() + BigUint::one());
+        let num_pow = rhs.to_the_power_of(exp);
+        let result = self.num.clone() * num_pow.num;
+        Self {
+            num: result % self.prime.clone(),
+            prime: self.prime.clone(),
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    macro_rules! u256 {
+    use num_bigint::BigUint;
+    use num_traits::FromPrimitive;
+
+    macro_rules! biguint {
         ($val: expr) => {
-            U256::from($val)
+            BigUint::from_u32($val).unwrap()
         };
     }
 
     #[test]
     fn test_fieldelement_eq() {
-        let element = FieldElement::new(u256!(10), Some(u256!(13)));
-        let other = FieldElement::new(u256!(6), Some(u256!(13)));
-        assert!(!element.equal(&other));
+        let element = FieldElement::new(biguint!(10), Some(biguint!(13)));
+        let other = FieldElement::new(biguint!(6), Some(biguint!(13)));
+        assert!(element != other);
     }
 
     #[test]
     fn test_fieldelement_ne() {
-        let element = FieldElement::new(u256!(6), Some(u256!(13)));
-        let other = FieldElement::new(u256!(7), Some(u256!(13)));
+        let element = FieldElement::new(biguint!(6), Some(biguint!(13)));
+        let other = FieldElement::new(biguint!(7), Some(biguint!(13)));
         assert!(element.ne(&other));
     }
 
     #[test]
     fn test_calculate_modulo() {
-        let prime = Some(u256!(57));
+        let prime = Some(biguint!(57));
 
-        let field_element_1 = FieldElement::new(u256!(44), prime.clone());
+        let field_element_1 = FieldElement::new(biguint!(44), prime.clone());
         assert_eq!(
-            u256!(20),
-            field_element_1.modulo(&(field_element_1.num + u256!(33)))
+            biguint!(20),
+            field_element_1.modulo(&(field_element_1.num.clone() + biguint!(33)))
         );
 
-        let field_element_3 = FieldElement::new(u256!(17), prime.clone());
+        let field_element_3 = FieldElement::new(biguint!(17), prime.clone());
         assert_eq!(
-            u256!(51),
-            field_element_3.modulo(&(field_element_3.num + u256!(42) + u256!(49)))
+            biguint!(51),
+            field_element_3.modulo(&(field_element_3.num.clone() + biguint!(42) + biguint!(49)))
         );
     }
 
     #[test]
     fn test_add() {
-        let prime = Some(u256!(13));
-        let a = FieldElement::new(u256!(7), prime.clone());
-        let b = FieldElement::new(u256!(12), prime.clone());
-        let c = FieldElement::new(u256!(6), prime);
+        let prime = Some(biguint!(13));
+        let a = FieldElement::new(biguint!(7), prime.clone());
+        let b = FieldElement::new(biguint!(12), prime.clone());
+        let c = FieldElement::new(biguint!(6), prime);
 
-        assert_eq!(a.add(&b), c);
+        assert_eq!(a + b, c);
     }
 
     #[test]
     fn test_mul() {
-        let prime = Some(u256!(13));
-        let a = FieldElement::new(u256!(3), prime.clone());
-        let b = FieldElement::new(u256!(12), prime.clone());
-        let c = FieldElement::new(u256!(10), prime);
+        let prime = Some(biguint!(13));
+        let a = FieldElement::new(biguint!(3), prime.clone());
+        let b = FieldElement::new(biguint!(12), prime.clone());
+        let c = FieldElement::new(biguint!(10), prime);
 
-        assert_eq!(a.mul(&b), c);
+        assert_eq!(a * b, c);
     }
 
     #[test]
@@ -188,25 +254,25 @@ mod tests {
 
     #[test]
     fn test_pow() {
-        let a = FieldElement::new(u256!(7), Some(u256!(13)));
-        let b = FieldElement::new(u256!(8), Some(u256!(13)));
+        let a = FieldElement::new(biguint!(7), Some(biguint!(13)));
+        let b = FieldElement::new(biguint!(8), Some(biguint!(13)));
 
-        assert_eq!(a.pow(U256::from(9)), b);
+        assert_eq!(a.to_the_power_of(biguint!(9)), b);
     }
 
     #[test]
     fn test_true_div() {
-        let prime = Some(u256!(19));
-        let mut a = FieldElement::new(u256!(2), prime.clone());
-        let mut b = FieldElement::new(u256!(7), prime.clone());
-        let mut c = FieldElement::new(u256!(3), prime.clone());
+        let prime = Some(biguint!(19));
+        let mut a = FieldElement::new(biguint!(2), prime.clone());
+        let mut b = FieldElement::new(biguint!(7), prime.clone());
+        let mut c = FieldElement::new(biguint!(3), prime.clone());
 
-        assert_eq!(a.true_div(&b), c);
+        assert_eq!(a / b, c);
 
-        a = FieldElement::new(u256!(7), prime.clone());
-        b = FieldElement::new(u256!(5), prime.clone());
-        c = FieldElement::new(u256!(9), prime);
+        a = FieldElement::new(biguint!(7), prime.clone());
+        b = FieldElement::new(biguint!(5), prime.clone());
+        c = FieldElement::new(biguint!(9), prime);
 
-        assert_eq!(a.true_div(&b), c);
+        assert_eq!(a / b, c);
     }
 }
