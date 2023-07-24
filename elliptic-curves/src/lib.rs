@@ -156,7 +156,7 @@ mod tests {
     use ethereum_types::{U256, U512};
     use finite_fields::FieldElement;
     use num_bigint::BigUint;
-    use num_traits::Num;
+    use num_traits::{FromPrimitive, Num};
 
     use crate::Point;
 
@@ -254,7 +254,7 @@ mod tests {
         // let point_g = Point::new(Some(field_x.clone()), Some(field_y.clone()), None, None);
 
         let n = BigUint::from_str_radix(N, 16).unwrap();
-        
+
         let c = n.clone() + n.clone();
 
         // let temp_x = FieldElement::new(
@@ -265,5 +265,23 @@ mod tests {
         // let temp = Point::new(Some(temp_x), Some(temp_y), None, None);
 
         // assert!(point_g.x == temp.x && point_g.y != temp.y);
+    }
+
+    #[test]
+    fn test_secp256k1() {
+        let x = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let y = "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
+
+        let gx = BigUint::from_str_radix(x, 16).unwrap();
+        let gy = BigUint::from_str_radix(y, 16).unwrap();
+
+        let p = BigUint::from_u8(2).unwrap().pow(256_u32)
+            - BigUint::from_u8(2).unwrap().pow(32_u32)
+            - BigUint::from_u32(977).unwrap();
+
+        assert_eq!(
+            gy.pow(2) % &p,
+            (gx.pow(3) + BigUint::from_u32(7).unwrap()) % &p
+        );
     }
 }
