@@ -1,10 +1,7 @@
-use std::{
-    ops::{Add, Sub, Mul, Div},
-    str::{self, FromStr},
-};
+use std::ops::{Add, Div, Mul, Sub};
 
 use num_bigint::BigUint;
-use num_traits::{One, Zero};
+use num_traits::{Num, One, Zero};
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
@@ -17,7 +14,7 @@ pub struct FieldElement {
 impl FieldElement {
     pub fn new(num: BigUint, prime: Option<BigUint>) -> Self {
         let prime = if prime.is_none() {
-            BigUint::from_str(P).unwrap()
+            BigUint::from_str_radix(P, 16).unwrap()
         } else {
             prime.unwrap()
         };
@@ -56,7 +53,7 @@ impl FieldElement {
         }
     }
 
-    pub fn mod_pow(base: BigUint, mut exp:BigUint, modulus: BigUint) -> BigUint {
+    pub fn mod_pow(base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
         if modulus == BigUint::one() {
             return BigUint::zero();
         }
@@ -67,7 +64,7 @@ impl FieldElement {
             if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
                 result = result * base.clone() % modulus.clone();
             }
-            exp = exp /(BigUint::one() + BigUint::one());
+            exp = exp / (BigUint::one() + BigUint::one());
             base = base.clone() * base % modulus.clone();
         }
 
@@ -173,7 +170,6 @@ impl Div for FieldElement {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
