@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, One, Zero};
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
@@ -125,10 +125,20 @@ impl Sub for FieldElement {
             panic!("cannot subtract two numbers in different Fields");
         }
 
-        let num = self.modulo(&(self.num.clone() - rhs.num));
-        Self {
-            num,
-            prime: self.prime.clone(),
+        let difference = BigInt::from(self.num.clone()) - BigInt::from(rhs.num.clone());
+        let big_prime = BigInt::from(self.prime.clone());
+        let remainder = difference % big_prime.clone();
+        if remainder < BigInt::zero() {
+            let new_num = remainder + big_prime;
+            Self {
+                num: new_num.try_into().unwrap(),
+                prime: self.prime.clone(),
+            }
+        } else {
+            Self {
+                num: remainder.try_into().unwrap(),
+                prime: self.prime.clone(),
+            }
         }
     }
 }

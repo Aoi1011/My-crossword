@@ -106,8 +106,8 @@ impl Add for Point {
 
         if self.x != rhs.x {
             // s = (y2 - y1) / (x2 - x1)
-            let s = rhs.y.unwrap()
-                - (self.y.clone().unwrap()) / (rhs.x.clone().unwrap() - (self.x.clone().unwrap()));
+            let s = (rhs.y.unwrap() - self.y.clone().unwrap())
+                / (rhs.x.clone().unwrap() - self.x.clone().unwrap());
             // x3 = s ^ 2 - x1 - x2
             let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
                 - self.x.clone().unwrap()
@@ -130,7 +130,6 @@ impl Add for Point {
                     .x
                     .clone()
                     .unwrap()
-                    .clone()
                     .to_the_power_of(BigUint::from_u8(2).unwrap()))
                 + self.a.clone())
                 / (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
@@ -138,7 +137,7 @@ impl Add for Point {
             // x3 = s ^ 2 - 2x1
             let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
                 - (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
-                    * self.x.clone().unwrap().clone());
+                    * self.x.clone().unwrap());
             // y3 = s(x1 - x3) - y1
             let y3 = s * (self.x.unwrap() - x3.clone()) - self.y.unwrap();
 
