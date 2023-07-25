@@ -77,6 +77,30 @@ impl Point {
         }
         false
     }
+
+    pub fn get_point_g() -> Self {
+        let str_x = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let str_y = "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
+        let gx = BigUint::from_str_radix(str_x, 16).unwrap();
+        let gy = BigUint::from_str_radix(str_y, 16).unwrap();
+
+        let p = BigUint::from_u8(2).unwrap().pow(256_u32)
+            - BigUint::from_u8(2).unwrap().pow(32_u32)
+            - BigUint::from_u32(977).unwrap();
+
+        let x = FieldElement::new(gx, Some(p.clone()));
+        let y = FieldElement::new(gy, Some(p.clone()));
+
+        let seven = FieldElement::new(BigUint::from_u8(7).unwrap(), None);
+        let zero = FieldElement::new(BigUint::zero(), None);
+
+        Self {
+            x: Some(x),
+            y: Some(y),
+            a: zero,
+            b: seven,
+        }
+    }
 }
 
 impl Add for Point {
@@ -174,7 +198,7 @@ impl Add for Point {
 mod tests {
     use finite_fields::FieldElement;
     use num_bigint::BigUint;
-    use num_traits::{FromPrimitive, Num, Zero};
+    use num_traits::{FromPrimitive, Num, One, Zero};
 
     use crate::{Point, N};
 
@@ -280,28 +304,61 @@ mod tests {
 
     #[test]
     fn test_infinity() {
-        let str_x = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
-        let str_y = "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
-
-        let gx = BigUint::from_str_radix(str_x, 16).unwrap();
-        let gy = BigUint::from_str_radix(str_y, 16).unwrap();
-
-        let p = BigUint::from_u8(2).unwrap().pow(256_u32)
-            - BigUint::from_u8(2).unwrap().pow(32_u32)
-            - BigUint::from_u32(977).unwrap();
-
         let n = BigUint::from_str_radix(N, 16).unwrap();
-
-        let x = FieldElement::new(gx, Some(p.clone()));
-        let y = FieldElement::new(gy, Some(p.clone()));
-
-        let seven = FieldElement::new(BigUint::from_u8(7).unwrap(), None);
-        let zero = FieldElement::new(BigUint::zero(), None);
-
-        let g = Point::new(Some(x), Some(y), Some(zero), Some(seven));
+        let g = Point::get_point_g();
 
         let ng = g.rmul(n);
 
         assert!(ng.is_infinity());
+    }
+
+    #[test]
+    fn test_verify_signature() {
+        let z = "bc62d4b80d9e36da29c16c5d4d9f11731f36052c72401a76c23c0fb5a9b74423";
+        let r = "37206a0610995c58074999cb9767b87af4c4978db68c06e8e6e81d282047a7c6";
+        let s = "8ca63759c1157ebeaec0d03cecca119fc9a75bf8e6d0fa65c841c8e2738cdaec";
+        let px = "04519fac3d910ca7e7138f7013706f619fa8f033e6ec6e09370ea38cee6a7574";
+        let py = "82b51eab8c27c66e26c858a079bcdf4f1ada34cec420cafc7eac1a42216fb6c4";
+
+        let px = BigUint::from_str_radix(px, 16).unwrap();
+        let py = BigUint::from_str_radix(py, 16).unwrap();
+        let n = BigUint::from_str_radix(N, 16).unwrap();
+        let z = BigUint::from_str_radix(z, 16).unwrap();
+        let r = BigUint::from_str_radix(r, 16).unwrap();
+
+        let point = Point::new(
+            Some(FieldElement::new(px, None)),
+            Some(FieldElement::new(py, None)),
+            None,
+            None,
+        );
+
+        let big_s = BigUint::from_str_radix(s, 16).unwrap();
+        let s_inv = mod_pow(big_s, n.clone() - (BigUint::one() + BigUint::one()), n.clone());
+
+        let u = z * s_inv.clone() % n.clone();
+        let v = r.clone() * s_inv.clone() % n.clone();
+
+        let g = Point::get_point_g();
+
+        assert!((g.rmul(u) + point.rmul(v)).x.unwrap().num == r);
+    }
+
+    fn mod_pow(base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
+        if modulus == BigUint::one() {
+            return BigUint::zero();
+        }
+
+        let mut result = BigUint::one();
+        let mut base = base.clone() % modulus.clone();
+        while exp > BigUint::zero() {
+            if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
+                result = result * base.clone() % modulus.clone();
+            }
+            exp = exp / (BigUint::one() + BigUint::one());
+            base = base.clone() * base % modulus.clone();
+        }
+
+        result
     }
 }
