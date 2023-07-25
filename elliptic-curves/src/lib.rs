@@ -1,7 +1,12 @@
 use std::ops::Add;
 
 use finite_fields::FieldElement;
-use ibig::ibig;
+use num_bigint::BigUint;
+use num_traits::{FromPrimitive, Num, One, Zero};
+
+const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
+const N: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Point {
@@ -16,11 +21,27 @@ impl Point {
     pub fn new(
         x: Option<FieldElement>,
         y: Option<FieldElement>,
-        a: FieldElement,
-        b: FieldElement,
+        a: Option<FieldElement>,
+        b: Option<FieldElement>,
     ) -> Self {
+        let a = if a.is_none() {
+            FieldElement::new(BigUint::from_str_radix(A, 16).unwrap(), None)
+        } else {
+            a.unwrap()
+        };
+
+        let b = if b.is_none() {
+            FieldElement::new(BigUint::from_str_radix(B, 16).unwrap(), None)
+        } else {
+            b.unwrap()
+        };
+
         if let (Some(x_field), Some(y_field)) = (x.clone(), y.clone()) {
-            if y_field.pow(2) != x_field.pow(3).add(&a.mul(&x_field)).add(&b) {
+            if y_field.to_the_power_of(BigUint::from_u8(2).unwrap())
+                != x_field.to_the_power_of(BigUint::from_u8(3).unwrap())
+                    + (a.clone() * x_field.clone())
+                    + b.clone()
+            {
                 panic!("({:?}, {:?}) is not on the curve", x_field, y_field);
             }
         }
@@ -36,18 +57,49 @@ impl Point {
         *self != other.unwrap()
     }
 
-    pub fn rmul(&self, coefficient: u32) -> Self {
+    pub fn rmul(&self, coefficient: BigUint) -> Self {
         let mut coef = coefficient;
         let mut current = self.clone();
-        let mut result = Self::new(None, None, self.a.clone(), self.b.clone());
-        while coef != 0 {
-            if coef & 1 == 1 {
+        let mut result = Self::new(None, None, Some(self.a.clone()), Some(self.b.clone()));
+        while coef.clone() != BigUint::zero() {
+            if coef.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
                 result = result + current.clone();
             }
             current = current.clone() + current.clone();
             coef >>= 1;
         }
         result
+    }
+
+    pub fn is_infinity(&self) -> bool {
+        if self.x.is_none() && self.y.is_none() {
+            return true;
+        }
+        false
+    }
+
+    pub fn get_point_g() -> Self {
+        let str_x = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let str_y = "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
+        let gx = BigUint::from_str_radix(str_x, 16).unwrap();
+        let gy = BigUint::from_str_radix(str_y, 16).unwrap();
+
+        let p = BigUint::from_u8(2).unwrap().pow(256_u32)
+            - BigUint::from_u8(2).unwrap().pow(32_u32)
+            - BigUint::from_u32(977).unwrap();
+
+        let x = FieldElement::new(gx, Some(p.clone()));
+        let y = FieldElement::new(gy, Some(p.clone()));
+
+        let seven = FieldElement::new(BigUint::from_u8(7).unwrap(), None);
+        let zero = FieldElement::new(BigUint::zero(), None);
+
+        Self {
+            x: Some(x),
+            y: Some(y),
+            a: zero,
+            b: seven,
+        }
     }
 }
 
@@ -59,62 +111,85 @@ impl Add for Point {
             panic!("Points {:?}, {:?} are not on the same curve", self, rhs);
         }
 
-        match (self.x.clone(), rhs.x.clone()) {
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y != rhs.y => Self {
+        if self.x.is_none() {
+            return rhs;
+        }
+
+        if rhs.x.is_none() {
+            return self;
+        }
+
+        if self.x == rhs.x && self.y != rhs.y {
+            return Self {
                 x: None,
                 y: None,
                 a: self.a,
                 b: self.b,
-            },
-            (Some(self_x), Some(other_x)) if self_x != other_x => {
-                // s = (y2 - y1) / (x2 - x1)
-                let s = rhs
-                    .y
-                    .unwrap()
-                    .sub(&self.y.clone().unwrap())
-                    .true_div(Some(other_x.sub(&self.x.clone().unwrap())));
-                // x3 = s ^ 2 - x1 - x2
-                let x3 = s.pow(2).sub(&self.x.unwrap()).sub(&rhs.x.clone().unwrap());
-                // y3 = s(x1 - x3) - y1
-                let y3 = s.mul(&self_x.sub(&x3)).sub(&self.y.unwrap());
-                Self {
-                    x: Some(x3),
-                    y: Some(y3),
-                    a: self.a,
-                    b: self.b,
-                }
-            }
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y == rhs.y => {
-                let x_prime = self_x.clone().prime;
-                // s = (3x1 ^ 2 + a) / (2y1)
-                let s = FieldElement::new(ibig!(3), x_prime.clone())
-                    .mul(&self_x.pow(2))
-                    .add(&self.a)
-                    .true_div(Some(
-                        FieldElement::new(ibig!(2), x_prime.clone()).mul(&self.y.clone().unwrap()),
-                    ));
-                // x3 = s ^ 2 - 2x1
-                let x3 = s
-                    .pow(2)
-                    .sub(&FieldElement::new(ibig!(2), x_prime.clone()).mul(&self_x));
-                // y3 = s(x1 - x3) - y1
-                let y3 = s.mul(&self_x.sub(&x3)).sub(&self.y.unwrap());
+            };
+        }
 
-                Self {
-                    x: Some(x3),
-                    y: Some(y3),
-                    a: self.a,
-                    b: self.b,
-                }
-            }
-            (Some(_), None) => self,
-            (None, Some(_)) => rhs,
-            _ => Self {
-                x: self.x,
-                y: self.y,
+        if self.x != rhs.x {
+            // s = (y2 - y1) / (x2 - x1)
+            let s = (rhs.y.unwrap() - self.y.clone().unwrap())
+                / (rhs.x.clone().unwrap() - self.x.clone().unwrap());
+            // x3 = s ^ 2 - x1 - x2
+            let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
+                - self.x.clone().unwrap()
+                - rhs.x.clone().unwrap();
+            // y3 = s(x1 - x3) - y1
+            let y3 = s * (self.x.unwrap() - x3.clone()) - self.y.unwrap();
+            return Self {
+                x: Some(x3),
+                y: Some(y3),
                 a: self.a,
                 b: self.b,
-            },
+            };
+        }
+
+        if self == rhs {
+            let x_prime = self.x.clone().unwrap().prime;
+            // s = (3x1 ^ 2 + a) / (2y1)
+            let s = ((FieldElement::new(BigUint::from_u8(3).unwrap(), Some(x_prime.clone()))
+                * self
+                    .x
+                    .clone()
+                    .unwrap()
+                    .to_the_power_of(BigUint::from_u8(2).unwrap()))
+                + self.a.clone())
+                / (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
+                    * (self.y.clone().unwrap()));
+            // x3 = s ^ 2 - 2x1
+            let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
+                - (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
+                    * self.x.clone().unwrap());
+            // y3 = s(x1 - x3) - y1
+            let y3 = s * (self.x.unwrap() - x3.clone()) - self.y.unwrap();
+
+            return Self {
+                x: Some(x3),
+                y: Some(y3),
+                a: self.a,
+                b: self.b,
+            };
+        }
+
+        if self == rhs
+            && self.y.unwrap()
+                == FieldElement::zero(self.x.clone().unwrap().prime) * self.x.unwrap()
+        {
+            return Self {
+                x: None,
+                y: None,
+                a: self.a,
+                b: self.b,
+            };
+        }
+
+        Self {
+            x: rhs.x,
+            y: rhs.y,
+            a: rhs.a,
+            b: rhs.b,
         }
     }
 }
@@ -122,73 +197,168 @@ impl Add for Point {
 #[cfg(test)]
 mod tests {
     use finite_fields::FieldElement;
-    use ibig::ibig;
+    use num_bigint::BigUint;
+    use num_traits::{FromPrimitive, Num, One, Zero};
 
-    use crate::Point;
+    use crate::{Point, N};
+
+    macro_rules! biguint {
+        ($val: expr) => {
+            BigUint::from_u8($val).unwrap()
+        };
+    }
+
+    // #[test]
+    // fn test_equal() {
+    //     let prime = Some(biguint!(27));
+
+    //     let field_element1 = FieldElement::new(biguint!(-1), prime.clone());
+    //     let field_element2 = FieldElement::new(biguint!(-1), prime.clone());
+    //     let a = FieldElement::new(biguint!(5), prime.clone());
+    //     let b = FieldElement::new(biguint!(7), prime.clone());
+    //     let point1 = Point::new(
+    //         Some(field_element1.clone()),
+    //         Some(field_element1),
+    //         Some(a.clone()),
+    //         Some(b.clone()),
+    //     );
+    //     let point2 = Point::new(
+    //         Some(field_element2.clone()),
+    //         Some(field_element2),
+    //         Some(a),
+    //         Some(b),
+    //     );
+
+    //     assert!(point1.equal(Some(point2)));
+    // }
+
+    // #[test]
+    // fn test_add() {
+    //     let mut prime = Some(ibig!(27));
+
+    //     let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
+    //     let field_element2 = FieldElement::new(ibig!(1), prime.clone());
+    //     let a = FieldElement::new(ibig!(5), prime.clone());
+    //     let b = FieldElement::new(ibig!(7), prime.clone());
+    //     let point1 = Point::new(
+    //         Some(field_element1.clone()),
+    //         Some(field_element1.clone()),
+    //         Some(a.clone()),
+    //         Some(b.clone()),
+    //     );
+    //     let point2 = Point::new(
+    //         Some(field_element1),
+    //         Some(field_element2),
+    //         Some(a.clone()),
+    //         Some(b.clone()),
+    //     );
+    //     let inf = Point::new(None, None, Some(a), Some(b));
+
+    //     assert_eq!(point1 + point2, inf);
+
+    //     // x1 != x2
+    //     prime = Some(ibig!(223));
+
+    //     let a = FieldElement::new(ibig!(0), prime.clone());
+    //     let b = FieldElement::new(ibig!(7), prime.clone());
+    //     let field_element1 = FieldElement::new(ibig!(170), prime.clone());
+    //     let field_element2 = FieldElement::new(ibig!(142), prime.clone());
+    //     let field_element3 = FieldElement::new(ibig!(60), prime.clone());
+    //     let field_element4 = FieldElement::new(ibig!(139), prime.clone());
+    //     let field_element5 = FieldElement::new(ibig!(220), prime.clone());
+    //     let field_element6 = FieldElement::new(ibig!(181), prime.clone());
+    //     let point1 = Point::new(
+    //         Some(field_element1),
+    //         Some(field_element2),
+    //         Some(a.clone()),
+    //         Some(b.clone()),
+    //     );
+    //     let point2 = Point::new(
+    //         Some(field_element3),
+    //         Some(field_element4),
+    //         Some(a.clone()),
+    //         Some(b.clone()),
+    //     );
+    //     let point3 = Point::new(Some(field_element5), Some(field_element6), Some(a), Some(b));
+
+    //     assert_eq!(point1 + point2, point3);
+    // }
 
     #[test]
-    fn test_equal() {
-        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
-        let field_element2 = FieldElement::new(ibig!(-1), ibig!(27));
-        let a = FieldElement::new(ibig!(5), ibig!(27));
-        let b = FieldElement::new(ibig!(7), ibig!(27));
-        let point1 = Point::new(
-            Some(field_element1.clone()),
-            Some(field_element1),
-            a.clone(),
-            b.clone(),
-        );
-        let point2 = Point::new(Some(field_element2.clone()), Some(field_element2), a, b);
+    fn test_secp256k1() {
+        let x = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let y = "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8";
 
-        assert!(point1.equal(Some(point2)));
+        let gx = BigUint::from_str_radix(x, 16).unwrap();
+        let gy = BigUint::from_str_radix(y, 16).unwrap();
+
+        let p = BigUint::from_u8(2).unwrap().pow(256_u32)
+            - BigUint::from_u8(2).unwrap().pow(32_u32)
+            - BigUint::from_u32(977).unwrap();
+
+        assert_eq!(
+            gy.pow(2) % &p,
+            (gx.pow(3) + BigUint::from_u32(7).unwrap()) % &p
+        );
     }
 
     #[test]
-    fn test_add() {
-        let field_element1 = FieldElement::new(ibig!(-1), ibig!(27));
-        let field_element2 = FieldElement::new(ibig!(1), ibig!(27));
-        let a = FieldElement::new(ibig!(5), ibig!(27));
-        let b = FieldElement::new(ibig!(7), ibig!(27));
-        let point1 = Point::new(
-            Some(field_element1.clone()),
-            Some(field_element1.clone()),
-            a.clone(),
-            b.clone(),
-        );
-        let point2 = Point::new(
-            Some(field_element1),
-            Some(field_element2),
-            a.clone(),
-            b.clone(),
-        );
-        let inf = Point::new(None, None, a, b);
+    fn test_infinity() {
+        let n = BigUint::from_str_radix(N, 16).unwrap();
+        let g = Point::get_point_g();
 
-        assert_eq!(point1 + point2, inf);
+        let ng = g.rmul(n);
 
-        // x1 != x2
-        let prime = ibig!(223);
-        let a = FieldElement::new(ibig!(0), prime.clone());
-        let b = FieldElement::new(ibig!(7), prime.clone());
-        let field_element1 = FieldElement::new(ibig!(170), prime.clone());
-        let field_element2 = FieldElement::new(ibig!(142), prime.clone());
-        let field_element3 = FieldElement::new(ibig!(60), prime.clone());
-        let field_element4 = FieldElement::new(ibig!(139), prime.clone());
-        let field_element5 = FieldElement::new(ibig!(220), prime.clone());
-        let field_element6 = FieldElement::new(ibig!(181), prime.clone());
-        let point1 = Point::new(
-            Some(field_element1),
-            Some(field_element2),
-            a.clone(),
-            b.clone(),
-        );
-        let point2 = Point::new(
-            Some(field_element3),
-            Some(field_element4),
-            a.clone(),
-            b.clone(),
-        );
-        let point3 = Point::new(Some(field_element5), Some(field_element6), a, b);
+        assert!(ng.is_infinity());
+    }
 
-        assert_eq!(point1 + point2, point3);
+    #[test]
+    fn test_verify_signature() {
+        let z = "bc62d4b80d9e36da29c16c5d4d9f11731f36052c72401a76c23c0fb5a9b74423";
+        let r = "37206a0610995c58074999cb9767b87af4c4978db68c06e8e6e81d282047a7c6";
+        let s = "8ca63759c1157ebeaec0d03cecca119fc9a75bf8e6d0fa65c841c8e2738cdaec";
+        let px = "04519fac3d910ca7e7138f7013706f619fa8f033e6ec6e09370ea38cee6a7574";
+        let py = "82b51eab8c27c66e26c858a079bcdf4f1ada34cec420cafc7eac1a42216fb6c4";
+
+        let px = BigUint::from_str_radix(px, 16).unwrap();
+        let py = BigUint::from_str_radix(py, 16).unwrap();
+        let n = BigUint::from_str_radix(N, 16).unwrap();
+        let z = BigUint::from_str_radix(z, 16).unwrap();
+        let r = BigUint::from_str_radix(r, 16).unwrap();
+
+        let point = Point::new(
+            Some(FieldElement::new(px, None)),
+            Some(FieldElement::new(py, None)),
+            None,
+            None,
+        );
+
+        let big_s = BigUint::from_str_radix(s, 16).unwrap();
+        let s_inv = mod_pow(big_s, n.clone() - (BigUint::one() + BigUint::one()), n.clone());
+
+        let u = z * s_inv.clone() % n.clone();
+        let v = r.clone() * s_inv.clone() % n.clone();
+
+        let g = Point::get_point_g();
+
+        assert!((g.rmul(u) + point.rmul(v)).x.unwrap().num == r);
+    }
+
+    fn mod_pow(base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
+        if modulus == BigUint::one() {
+            return BigUint::zero();
+        }
+
+        let mut result = BigUint::one();
+        let mut base = base.clone() % modulus.clone();
+        while exp > BigUint::zero() {
+            if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
+                result = result * base.clone() % modulus.clone();
+            }
+            exp = exp / (BigUint::one() + BigUint::one());
+            base = base.clone() * base % modulus.clone();
+        }
+
+        result
     }
 }

@@ -34,8 +34,6 @@ Point addition satisfies certain properties that we associate with addition
 - Associativity
 - Invertibility
 
-
-
 ## Elliptic Curve Cryptography
 
 ## Other
