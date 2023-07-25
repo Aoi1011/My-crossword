@@ -2,7 +2,7 @@ use std::ops::Add;
 
 use finite_fields::FieldElement;
 use num_bigint::BigUint;
-use num_traits::{FromPrimitive, Num, Zero, One};
+use num_traits::{FromPrimitive, Num, One, Zero};
 
 const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
@@ -87,60 +87,86 @@ impl Add for Point {
             panic!("Points {:?}, {:?} are not on the same curve", self, rhs);
         }
 
-        match (self.x.clone(), rhs.x.clone()) {
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y != rhs.y => Self {
+        if self.x.is_none() {
+            return rhs;
+        }
+
+        if rhs.x.is_none() {
+            return self;
+        }
+
+        if self.x == rhs.x && self.y != rhs.y {
+            return Self {
                 x: None,
                 y: None,
                 a: self.a,
                 b: self.b,
-            },
-            (Some(self_x), Some(other_x)) if self_x != other_x => {
-                // s = (y2 - y1) / (x2 - x1)
-                let s = rhs.y.unwrap()
-                    - (self.y.clone().unwrap()) / (other_x - (self.x.clone().unwrap()));
-                // x3 = s ^ 2 - x1 - x2
-                let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
-                    - self.x.unwrap()
-                    - rhs.x.clone().unwrap();
-                // y3 = s(x1 - x3) - y1
-                let y3 = s * (self_x - x3.clone()) - self.y.unwrap();
-                Self {
-                    x: Some(x3),
-                    y: Some(y3),
-                    a: self.a,
-                    b: self.b,
-                }
-            }
-            (Some(self_x), Some(other_x)) if self_x == other_x && self.y == rhs.y => {
-                let x_prime = self_x.clone().prime;
-                // s = (3x1 ^ 2 + a) / (2y1)
-                let s = ((FieldElement::new(BigUint::from_u8(3).unwrap(), Some(x_prime.clone()))
-                    * self_x.clone().to_the_power_of(BigUint::from_u8(2).unwrap()))
-                    + self.a.clone())
-                        / (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
-                            * (self.y.clone().unwrap()));
-                // x3 = s ^ 2 - 2x1
-                let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
-                    - (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
-                        * self_x.clone());
-                // y3 = s(x1 - x3) - y1
-                let y3 = s * (self_x - x3.clone()) - self.y.unwrap();
+            };
+        }
 
-                Self {
-                    x: Some(x3),
-                    y: Some(y3),
-                    a: self.a,
-                    b: self.b,
-                }
-            }
-            (Some(_), None) => self,
-            (None, Some(_)) => rhs,
-            _ => Self {
-                x: self.x,
-                y: self.y,
+        if self.x != rhs.x {
+            // s = (y2 - y1) / (x2 - x1)
+            let s = rhs.y.unwrap()
+                - (self.y.clone().unwrap()) / (rhs.x.clone().unwrap() - (self.x.clone().unwrap()));
+            // x3 = s ^ 2 - x1 - x2
+            let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
+                - self.x.clone().unwrap()
+                - rhs.x.clone().unwrap();
+            // y3 = s(x1 - x3) - y1
+            let y3 = s * (self.x.unwrap() - x3.clone()) - self.y.unwrap();
+            return Self {
+                x: Some(x3),
+                y: Some(y3),
                 a: self.a,
                 b: self.b,
-            },
+            };
+        }
+
+        if self == rhs {
+            let x_prime = self.x.clone().unwrap().prime;
+            // s = (3x1 ^ 2 + a) / (2y1)
+            let s = ((FieldElement::new(BigUint::from_u8(3).unwrap(), Some(x_prime.clone()))
+                * self
+                    .x
+                    .clone()
+                    .unwrap()
+                    .clone()
+                    .to_the_power_of(BigUint::from_u8(2).unwrap()))
+                + self.a.clone())
+                / (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
+                    * (self.y.clone().unwrap()));
+            // x3 = s ^ 2 - 2x1
+            let x3 = s.to_the_power_of(BigUint::from_u8(2).unwrap())
+                - (FieldElement::new(BigUint::from_u8(2).unwrap(), Some(x_prime.clone()))
+                    * self.x.clone().unwrap().clone());
+            // y3 = s(x1 - x3) - y1
+            let y3 = s * (self.x.unwrap() - x3.clone()) - self.y.unwrap();
+
+            return Self {
+                x: Some(x3),
+                y: Some(y3),
+                a: self.a,
+                b: self.b,
+            };
+        }
+
+        if self == rhs
+            && self.y.unwrap()
+                == FieldElement::zero(self.x.clone().unwrap().prime) * self.x.unwrap()
+        {
+            return Self {
+                x: None,
+                y: None,
+                a: self.a,
+                b: self.b,
+            };
+        }
+
+        Self {
+            x: rhs.x,
+            y: rhs.y,
+            a: rhs.a,
+            b: rhs.b,
         }
     }
 }
