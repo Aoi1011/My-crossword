@@ -110,9 +110,9 @@ impl Point {
         let g = Point::get_point_g();
 
         let s_inv = FieldElement::mod_pow(
-            sig.s.clone(),
+            &sig.s,
             n.clone() - (BigUint::one() + BigUint::one()),
-            n.clone(),
+            &n,
         );
         let u = z * s_inv.clone() % n.clone();
         let v = sig.r.clone() * s_inv.clone() % n.clone();

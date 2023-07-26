@@ -46,26 +46,26 @@ impl FieldElement {
 
     pub fn to_the_power_of(&self, exponent: BigUint) -> Self {
         let exp = exponent % (self.prime.clone() - BigUint::one());
-        let new_num = Self::mod_pow(self.num.clone(), exp, self.prime.clone());
+        let new_num = Self::mod_pow(&self.num, exp, &self.prime);
         Self {
             num: new_num,
             prime: self.prime.clone(),
         }
     }
 
-    pub fn mod_pow(base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
-        if modulus == BigUint::one() {
+    pub fn mod_pow(base: &BigUint, mut exp: BigUint, modulus: &BigUint) -> BigUint {
+        if modulus == &BigUint::one() {
             return BigUint::zero();
         }
 
         let mut result = BigUint::one();
-        let mut base = base.clone() % modulus.clone();
+        let mut base = base % modulus;
         while exp > BigUint::zero() {
             if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
-                result = result * base.clone() % modulus.clone();
+                result = result * base.clone() % modulus;
             }
             exp = exp / (BigUint::one() + BigUint::one());
-            base = base.clone() * base % modulus.clone();
+            base = base.clone() * base.clone() % modulus;
         }
 
         result
