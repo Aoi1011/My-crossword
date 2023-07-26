@@ -3,6 +3,7 @@ use std::ops::Add;
 use finite_fields::FieldElement;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
+use sha2::{Digest, Sha256};
 use signature::Signature;
 
 pub mod signature;
@@ -109,17 +110,32 @@ impl Point {
         let n = BigUint::from_str_radix(N, 16).unwrap();
         let g = Point::get_point_g();
 
-        let s_inv = FieldElement::mod_pow(
-            &sig.s,
-            n.clone() - (BigUint::one() + BigUint::one()),
-            &n,
-        );
+        let s_inv =
+            FieldElement::mod_pow(&sig.s, n.clone() - (BigUint::one() + BigUint::one()), &n);
         let u = z * s_inv.clone() % n.clone();
         let v = sig.r.clone() * s_inv.clone() % n.clone();
 
         let total = g.rmul(u) + self.rmul(v);
 
         total.x.unwrap().num == sig.r
+    }
+
+    pub fn hash256(s: &[u8]) -> [u8; 32] {
+        // First round of SHA-256
+        let mut hasher1 = Sha256::new();
+        hasher1.update(s);
+        let first_round_digest = hasher1.finalize();
+
+        // Second round of SHA-256
+        let mut hasher2 = Sha256::new();
+        hasher2.update(first_round_digest);
+        let final_digest = hasher2.finalize();
+
+        // Convert the final_digest to an array of 32 bytes
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&final_digest);
+
+        result
     }
 }
 
@@ -220,7 +236,7 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One, Zero};
 
-    use crate::{Point, N, signature::Signature};
+    use crate::{signature::Signature, Point, N};
 
     macro_rules! biguint {
         ($val: expr) => {
@@ -356,5 +372,38 @@ mod tests {
         let sig = Signature::new(r, s);
 
         assert!(point.verify(&z, &sig))
+    }
+
+    #[test]
+    fn test_create_signature() {
+        let e = BigUint::from_bytes_be(&Point::hash256(b"my secret"));
+        // 0x231c6f3d980a6b0fb7152f85cee7eb52bf92433d9919b9c5218cb08e79cce78
+        let z = BigUint::from_bytes_be(&Point::hash256(b"my message"));
+        let n = BigUint::from_str_radix(N, 16).unwrap();
+
+        let k = BigUint::from_u32(1234567890).unwrap();
+
+        let g = Point::get_point_g();
+
+        // 0x2b698a0f0a4041b77e63488ad48c23e8e8838dd1fb7520408b121697b782ef22
+        let r = g.rmul(k.clone()).x.unwrap().num;
+
+        let k_inv = FieldElement::mod_pow(&k, n.clone() - (BigUint::one() + BigUint::one()), &n);
+
+        // 0xbb14e602ef9e3f872e25fad328466b34e6734b7a0fcd58b1eb635447ffae8cb9
+        let _s = (z.clone() + r.clone() * e.clone()) * k_inv % n;
+
+        let point = g.rmul(e.clone());
+
+        // Point {
+        //     x: 028d003eab2e428d11983f3e97c3fa0addf3b42740df0d211795ffb3be2f6c52,
+        //     y: 0ae987b9ec6ea159c78cb2a937ed89096fb218d9e7594f02b547526d8cd309e2,
+        //
+        // }
+        println!(
+            "Point.x: {:?}, Point.y: {:?}",
+            point.x.unwrap().num.to_str_radix(16),
+            point.y.unwrap().num.to_str_radix(16)
+        );
     }
 }
