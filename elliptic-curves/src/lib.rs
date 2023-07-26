@@ -3,6 +3,9 @@ use std::ops::Add;
 use finite_fields::FieldElement;
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
+use signature::Signature;
+
+pub mod signature;
 
 const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
@@ -100,6 +103,23 @@ impl Point {
             a: zero,
             b: seven,
         }
+    }
+
+    pub fn verify(&self, z: &BigUint, sig: &Signature) -> bool {
+        let n = BigUint::from_str_radix(N, 16).unwrap();
+        let g = Point::get_point_g();
+
+        let s_inv = FieldElement::mod_pow(
+            sig.s.clone(),
+            n.clone() - (BigUint::one() + BigUint::one()),
+            n.clone(),
+        );
+        let u = z * s_inv.clone() % n.clone();
+        let v = sig.r.clone() * s_inv.clone() % n.clone();
+
+        let total = g.rmul(u) + self.rmul(v);
+
+        total.x.unwrap().num == sig.r
     }
 }
 
@@ -200,7 +220,7 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One, Zero};
 
-    use crate::{Point, N};
+    use crate::{Point, N, signature::Signature};
 
     macro_rules! biguint {
         ($val: expr) => {
@@ -322,9 +342,9 @@ mod tests {
 
         let px = BigUint::from_str_radix(px, 16).unwrap();
         let py = BigUint::from_str_radix(py, 16).unwrap();
-        let n = BigUint::from_str_radix(N, 16).unwrap();
         let z = BigUint::from_str_radix(z, 16).unwrap();
         let r = BigUint::from_str_radix(r, 16).unwrap();
+        let s = BigUint::from_str_radix(s, 16).unwrap();
 
         let point = Point::new(
             Some(FieldElement::new(px, None)),
@@ -333,32 +353,8 @@ mod tests {
             None,
         );
 
-        let big_s = BigUint::from_str_radix(s, 16).unwrap();
-        let s_inv = mod_pow(big_s, n.clone() - (BigUint::one() + BigUint::one()), n.clone());
+        let sig = Signature::new(r, s);
 
-        let u = z * s_inv.clone() % n.clone();
-        let v = r.clone() * s_inv.clone() % n.clone();
-
-        let g = Point::get_point_g();
-
-        assert!((g.rmul(u) + point.rmul(v)).x.unwrap().num == r);
-    }
-
-    fn mod_pow(base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
-        if modulus == BigUint::one() {
-            return BigUint::zero();
-        }
-
-        let mut result = BigUint::one();
-        let mut base = base.clone() % modulus.clone();
-        while exp > BigUint::zero() {
-            if exp.clone() % (BigUint::one() + BigUint::one()) == BigUint::one() {
-                result = result * base.clone() % modulus.clone();
-            }
-            exp = exp / (BigUint::one() + BigUint::one());
-            base = base.clone() * base % modulus.clone();
-        }
-
-        result
+        assert!(point.verify(&z, &sig))
     }
 }
