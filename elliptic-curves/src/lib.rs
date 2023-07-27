@@ -237,7 +237,7 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One, Zero};
 
-    use crate::{signature::Signature, Point, N};
+    use crate::{signature::Signature, Point, N, private_key::PrivateKey};
 
     macro_rules! biguint {
         ($val: expr) => {
@@ -401,10 +401,15 @@ mod tests {
         //     y: 0ae987b9ec6ea159c78cb2a937ed89096fb218d9e7594f02b547526d8cd309e2,
         //
         // }
-        println!(
-            "Point.x: {:?}, Point.y: {:?}",
-            point.x.unwrap().num.to_str_radix(16),
-            point.y.unwrap().num.to_str_radix(16)
-        );
+        // println!(
+        //     "Point.x: {:?}, Point.y: {:?}",
+        //     point.x.unwrap().num.to_str_radix(16),
+        //     point.y.unwrap().num.to_str_radix(16)
+        // );
+
+        let pri_key = PrivateKey::new(e.clone());
+        let sig = pri_key.sign(z.clone());
+
+        assert!(point.verify(&z, &sig))
     }
 }
