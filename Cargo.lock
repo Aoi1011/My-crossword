@@ -166,6 +166,7 @@ dependencies = [
  "hex",
  "num-bigint",
  "num-traits",
+ "rand 0.8.5",
  "sha2 0.10.7",
 ]
 
