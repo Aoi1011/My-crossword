@@ -5,6 +5,7 @@ use rand::Rng;
 
 use crate::{signature::Signature, Point, N};
 
+#[derive(Debug)]
 pub struct PrivateKey {
     pub secret: BigUint,
     pub point: Point,
@@ -46,3 +47,4 @@ impl PrivateKey {
         Signature { r, s }
     }
 }
+

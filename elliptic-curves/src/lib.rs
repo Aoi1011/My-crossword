@@ -6,8 +6,8 @@ use num_traits::{FromPrimitive, Num, One, Zero};
 use sha2::{Digest, Sha256};
 use signature::Signature;
 
-pub mod signature;
 pub mod private_key;
+pub mod signature;
 
 const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
@@ -138,6 +138,21 @@ impl Point {
 
         result
     }
+
+    pub fn sec(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+        let prefix_bytes = b"04".to_vec();
+        let x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+        let y_bytes = self.y.clone().unwrap().num.to_bytes_be();
+
+        result.push(prefix_bytes);
+        result.push(x_bytes);
+        result.push(y_bytes);
+
+        let concated_res = result.concat();
+
+        concated_res
+    }
 }
 
 impl Add for Point {
@@ -233,93 +248,20 @@ impl Add for Point {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt;
+
     use finite_fields::FieldElement;
+    use hex::ToHex;
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One, Zero};
 
-    use crate::{signature::Signature, Point, N, private_key::PrivateKey};
+    use crate::{private_key::PrivateKey, signature::Signature, Point, N};
 
     macro_rules! biguint {
         ($val: expr) => {
             BigUint::from_u8($val).unwrap()
         };
     }
-
-    // #[test]
-    // fn test_equal() {
-    //     let prime = Some(biguint!(27));
-
-    //     let field_element1 = FieldElement::new(biguint!(-1), prime.clone());
-    //     let field_element2 = FieldElement::new(biguint!(-1), prime.clone());
-    //     let a = FieldElement::new(biguint!(5), prime.clone());
-    //     let b = FieldElement::new(biguint!(7), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1.clone()),
-    //         Some(field_element1),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element2.clone()),
-    //         Some(field_element2),
-    //         Some(a),
-    //         Some(b),
-    //     );
-
-    //     assert!(point1.equal(Some(point2)));
-    // }
-
-    // #[test]
-    // fn test_add() {
-    //     let mut prime = Some(ibig!(27));
-
-    //     let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
-    //     let field_element2 = FieldElement::new(ibig!(1), prime.clone());
-    //     let a = FieldElement::new(ibig!(5), prime.clone());
-    //     let b = FieldElement::new(ibig!(7), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1.clone()),
-    //         Some(field_element1.clone()),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element1),
-    //         Some(field_element2),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let inf = Point::new(None, None, Some(a), Some(b));
-
-    //     assert_eq!(point1 + point2, inf);
-
-    //     // x1 != x2
-    //     prime = Some(ibig!(223));
-
-    //     let a = FieldElement::new(ibig!(0), prime.clone());
-    //     let b = FieldElement::new(ibig!(7), prime.clone());
-    //     let field_element1 = FieldElement::new(ibig!(170), prime.clone());
-    //     let field_element2 = FieldElement::new(ibig!(142), prime.clone());
-    //     let field_element3 = FieldElement::new(ibig!(60), prime.clone());
-    //     let field_element4 = FieldElement::new(ibig!(139), prime.clone());
-    //     let field_element5 = FieldElement::new(ibig!(220), prime.clone());
-    //     let field_element6 = FieldElement::new(ibig!(181), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1),
-    //         Some(field_element2),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element3),
-    //         Some(field_element4),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point3 = Point::new(Some(field_element5), Some(field_element6), Some(a), Some(b));
-
-    //     assert_eq!(point1 + point2, point3);
-    // }
 
     #[test]
     fn test_secp256k1() {
@@ -411,5 +353,17 @@ mod tests {
         let sig = pri_key.sign(z.clone());
 
         assert!(point.verify(&z, &sig))
+    }
+
+    #[test]
+    fn test_sec() {
+        let pri_key1 = PrivateKey::new(BigUint::from_u16(5000).unwrap());
+        let serialized = pri_key1.point.sec();
+        let mut res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02X}", byte).as_str());
+        }
+
+        println!("{}", res);
     }
 }
