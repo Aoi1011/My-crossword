@@ -59,6 +59,7 @@ dependencies = [
  "finite-fields",
  "hex",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "rand",
  "sha2",

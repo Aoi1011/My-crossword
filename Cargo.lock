@@ -165,6 +165,7 @@ dependencies = [
  "finite-fields",
  "hex",
  "num-bigint",
+ "num-integer",
  "num-traits",
  "rand 0.8.5",
  "sha2 0.10.7",
