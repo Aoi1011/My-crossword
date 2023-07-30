@@ -139,17 +139,35 @@ impl Point {
         result
     }
 
-    pub fn sec(&self) -> Vec<u8> {
+    pub fn sec(&self, compressed: bool) -> Vec<u8> {
+        let prefix_bytes: Vec<u8>;
+        let x_bytes: Vec<u8>;
         let mut result = Vec::new();
-        let prefix_bytes = b"\x04".to_vec();
-        let x_bytes = self.x.clone().unwrap().num.to_bytes_be();
-        let y_bytes = self.y.clone().unwrap().num.to_bytes_be();
+        let concated_res: Vec<u8>;
 
-        result.push(prefix_bytes);
-        result.push(x_bytes);
-        result.push(y_bytes);
+        if compressed {
+            if self.y.clone().unwrap().num % (BigUint::one() + BigUint::one()) == BigUint::zero() {
+                prefix_bytes = b"\x02".to_vec();
+                x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            } else {
+                prefix_bytes = b"\x03".to_vec();
+                x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            }
+            result.push(prefix_bytes);
+            result.push(x_bytes);
 
-        let concated_res = result.concat();
+            concated_res = result.concat();
+        } else {
+            prefix_bytes = b"\x04".to_vec();
+            x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            let y_bytes = self.y.clone().unwrap().num.to_bytes_be();
+
+            result.push(prefix_bytes);
+            result.push(x_bytes);
+            result.push(y_bytes);
+
+            concated_res = result.concat();
+        }
 
         concated_res
     }
@@ -348,8 +366,8 @@ mod tests {
 
     #[test]
     fn test_sec() {
-        let pri_key1 = PrivateKey::new(BigUint::from_u16(5000).unwrap());
-        let serialized = pri_key1.point.sec();
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5000).unwrap());
+        let mut serialized = pri_key.point.sec(false);
         let mut res = String::new();
         for byte in serialized {
             res.push_str(format!("{:02x}", byte).as_str());
@@ -360,5 +378,20 @@ mod tests {
             "04ffe558e388852f0120e46af2d1b370f85854a8eb0841811ece0e3e03d282d57c315dc72890a4\
 f10a1481c031b03b351b0dc79901ca18a00cf009dbdb157a1d10"
         );
+        res.clear();
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2018_u64.pow(5)).unwrap());
+        serialized = pri_key.point.sec(false);
+        res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "04027f3da1918455e03c46f659266a1bb5204e959db7364d2f473bdf8f0a13cc9dff87647fd023\
+c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
+        );
+        res.clear();
     }
 }
