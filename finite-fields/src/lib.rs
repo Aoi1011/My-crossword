@@ -3,7 +3,7 @@ use std::ops::{Add, Div, Mul, Sub};
 use num_bigint::{BigInt, BigUint};
 use num_traits::{FromPrimitive, Num, One, Zero};
 
-const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
+pub const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
 #[derive(Debug, Clone)]
 pub struct FieldElement {

@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use finite_fields::FieldElement;
+use finite_fields::{FieldElement, P};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
 use sha2::{Digest, Sha256};
@@ -170,6 +170,60 @@ impl Point {
         }
 
         concated_res
+    }
+
+    // when we get a serialized SEC pubkey, we can write a parse method to figure out which y we
+    // need:
+    pub fn parse(&self, sec_bin: Vec<u8>) -> Self {
+        if let Some(zero) = sec_bin.get(0) {
+            if zero == &4 {
+                let (left, right) = sec_bin.split_at(33);
+                let x = BigUint::from_bytes_be(&left[1..]);
+                let y = BigUint::from_bytes_be(&right);
+                return Self::new(
+                    Some(FieldElement::new(x, None)),
+                    Some(FieldElement::new(y, None)),
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let is_even = if sec_bin.get(0) == Some(&2) {
+            true
+        } else {
+            false
+        };
+
+        let x = FieldElement::new(BigUint::from_bytes_be(&sec_bin[1..]), None);
+
+        // right side of the equation y ^ 2 = x^ 3 + 7
+        let alpha = x.to_the_power_of(BigUint::from_u8(3).unwrap())
+            + FieldElement::new(BigUint::from_u8(7).unwrap(), None);
+        // solve for left side
+        let beta = alpha.sqrt();
+
+        let even_beta: FieldElement;
+        let odd_beta: FieldElement;
+        if beta.clone().num % (BigUint::one() + BigUint::one()) == BigUint::zero() {
+            even_beta = beta.clone();
+            odd_beta = FieldElement::new(
+                BigUint::from_str_radix(P, 16).unwrap() - beta.clone().num,
+                None,
+            );
+        } else {
+            even_beta = FieldElement::new(
+                BigUint::from_str_radix(P, 16).unwrap() - beta.clone().num,
+                None,
+            );
+            odd_beta = beta.clone();
+        }
+
+        if is_even {
+            Self::new(Some(x), Some(even_beta), None, None)
+        } else {
+            Self::new(Some(x), Some(odd_beta), None, None)
+        }
     }
 }
 
@@ -391,6 +445,35 @@ f10a1481c031b03b351b0dc79901ca18a00cf009dbdb157a1d10"
             res,
             "04027f3da1918455e03c46f659266a1bb5204e959db7364d2f473bdf8f0a13cc9dff87647fd023\
 c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
+        );
+        res.clear();
+    }
+
+    #[test]
+    fn test_compressed_sec() {
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5001).unwrap());
+        let mut serialized = pri_key.point.sec(true);
+        let mut res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "0357a4f368868a8a6d572991e484e664810ff14c05c0fa023275251151fe0e53d1"
+        );
+        res.clear();
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2019_u64.pow(5)).unwrap());
+        serialized = pri_key.point.sec(true);
+        res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "02933ec2d2b111b92737ec12f1c5d20f3233a0ad21cd8b36d0bca7a0cfa5cb8701"
         );
         res.clear();
     }
