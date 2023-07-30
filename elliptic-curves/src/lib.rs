@@ -174,7 +174,7 @@ impl Point {
 
     // when we get a serialized SEC pubkey, we can write a parse method to figure out which y we
     // need:
-    pub fn parse(&self, sec_bin: Vec<u8>) -> Self {
+    pub fn parse(sec_bin: Vec<u8>) -> Self {
         if let Some(zero) = sec_bin.get(0) {
             if zero == &4 {
                 let (left, right) = sec_bin.split_at(33);
