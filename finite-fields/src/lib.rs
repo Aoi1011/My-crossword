@@ -1,7 +1,7 @@
 use std::ops::{Add, Div, Mul, Sub};
 
 use num_bigint::{BigInt, BigUint};
-use num_traits::{Num, One, Zero};
+use num_traits::{FromPrimitive, Num, One, Zero};
 
 const P: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F";
 
@@ -90,6 +90,11 @@ impl FieldElement {
         } else {
             result
         }
+    }
+
+    pub fn sqrt(&self) -> Self {
+        let p = BigUint::from_str_radix(P, 16).unwrap();
+        self.to_the_power_of((p + BigUint::one()) / (BigUint::from_u8(4).unwrap()))
     }
 }
 
