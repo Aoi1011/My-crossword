@@ -1,8 +1,37 @@
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use ripemd::Ripemd160;
+use sha2::{Digest, Sha256};
 
 const BASE58_ALPHABET: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+pub fn hash160(s: &[u8]) -> Vec<u8> {
+    let mut hasher1 = Sha256::new();
+    hasher1.update(s);
+    let digest = hasher1.finalize();
+
+    let res = Ripemd160::digest(digest);
+    res.to_vec()
+}
+
+pub fn hash256(s: &[u8]) -> [u8; 32] {
+    // First round of SHA-256
+    let mut hasher1 = Sha256::new();
+    hasher1.update(s);
+    let first_round_digest = hasher1.finalize();
+
+    // Second round of SHA-256
+    let mut hasher2 = Sha256::new();
+    hasher2.update(first_round_digest);
+    let final_digest = hasher2.finalize();
+
+    // Convert the final_digest to an array of 32 bytes
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&final_digest);
+
+    result
+}
 
 pub fn encode_base58(s: &Vec<u8>) -> String {
     let mut result = String::new();
@@ -35,6 +64,12 @@ pub fn encode_base58(s: &Vec<u8>) -> String {
     }
 
     prefix + &result
+}
+
+pub fn encode_base58_checksum(b: &mut Vec<u8>) -> String {
+    let hashed_b = &hash256(b)[..4];
+    b.append(&mut hashed_b.to_vec());
+    encode_base58(b)
 }
 
 #[cfg(test)]

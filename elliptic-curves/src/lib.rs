@@ -3,7 +3,6 @@ use std::ops::Add;
 use finite_fields::{FieldElement, P};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
-use sha2::{Digest, Sha256};
 use signature::Signature;
 
 pub mod private_key;
@@ -122,23 +121,6 @@ impl Point {
         total.x.unwrap().num == sig.r
     }
 
-    pub fn hash256(s: &[u8]) -> [u8; 32] {
-        // First round of SHA-256
-        let mut hasher1 = Sha256::new();
-        hasher1.update(s);
-        let first_round_digest = hasher1.finalize();
-
-        // Second round of SHA-256
-        let mut hasher2 = Sha256::new();
-        hasher2.update(first_round_digest);
-        let final_digest = hasher2.finalize();
-
-        // Convert the final_digest to an array of 32 bytes
-        let mut result = [0u8; 32];
-        result.copy_from_slice(&final_digest);
-
-        result
-    }
 
     pub fn sec(&self, compressed: bool) -> Vec<u8> {
         let prefix_bytes: Vec<u8>;
@@ -325,7 +307,7 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One};
 
-    use crate::{private_key::PrivateKey, signature::Signature, Point, N};
+    use crate::{private_key::PrivateKey, signature::Signature, Point, N, helper::hash256};
 
     #[test]
     fn test_secp256k1() {
@@ -383,9 +365,9 @@ mod tests {
 
     #[test]
     fn test_create_signature() {
-        let e = BigUint::from_bytes_be(&Point::hash256(b"my secret"));
+        let e = BigUint::from_bytes_be(&hash256(b"my secret"));
         // 0x231c6f3d980a6b0fb7152f85cee7eb52bf92433d9919b9c5218cb08e79cce78
-        let z = BigUint::from_bytes_be(&Point::hash256(b"my message"));
+        let z = BigUint::from_bytes_be(&hash256(b"my message"));
         let n = BigUint::from_str_radix(N, 16).unwrap();
 
         let k = BigUint::from_u32(1234567890).unwrap();
