@@ -141,7 +141,7 @@ impl Point {
 
     pub fn sec(&self) -> Vec<u8> {
         let mut result = Vec::new();
-        let prefix_bytes = b"04".to_vec();
+        let prefix_bytes = b"\x04".to_vec();
         let x_bytes = self.x.clone().unwrap().num.to_bytes_be();
         let y_bytes = self.y.clone().unwrap().num.to_bytes_be();
 
@@ -248,20 +248,11 @@ impl Add for Point {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt;
-
     use finite_fields::FieldElement;
-    use hex::ToHex;
     use num_bigint::BigUint;
-    use num_traits::{FromPrimitive, Num, One, Zero};
+    use num_traits::{FromPrimitive, Num, One};
 
     use crate::{private_key::PrivateKey, signature::Signature, Point, N};
-
-    macro_rules! biguint {
-        ($val: expr) => {
-            BigUint::from_u8($val).unwrap()
-        };
-    }
 
     #[test]
     fn test_secp256k1() {
@@ -361,9 +352,13 @@ mod tests {
         let serialized = pri_key1.point.sec();
         let mut res = String::new();
         for byte in serialized {
-            res.push_str(format!("{:02X}", byte).as_str());
+            res.push_str(format!("{:02x}", byte).as_str());
         }
 
-        println!("{}", res);
+        assert_eq!(
+            res,
+            "04ffe558e388852f0120e46af2d1b370f85854a8eb0841811ece0e3e03d282d57c315dc72890a4\
+f10a1481c031b03b351b0dc79901ca18a00cf009dbdb157a1d10"
+        );
     }
 }
