@@ -1,13 +1,14 @@
 use std::ops::Add;
 
 use finite_fields::{FieldElement, P};
+use helper::{encode_base58_checksum, hash160};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
 use signature::Signature;
 
+pub mod helper;
 pub mod private_key;
 pub mod signature;
-pub mod helper;
 
 const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
@@ -121,7 +122,6 @@ impl Point {
         total.x.unwrap().num == sig.r
     }
 
-
     pub fn sec(&self, compressed: bool) -> Vec<u8> {
         let prefix_bytes: Vec<u8>;
         let x_bytes: Vec<u8>;
@@ -207,6 +207,26 @@ impl Point {
         } else {
             Self::new(Some(x), Some(odd_beta), None, None)
         }
+    }
+
+    pub fn hash160(&self, compressed: bool) -> Vec<u8> {
+        hash160(&self.sec(compressed))
+    }
+
+    pub fn address(&self, compressed: bool, testnet: bool) -> String {
+        let h160 = self.hash160(compressed);
+        let prefix;
+        let mut b = Vec::new();
+
+        if testnet {
+            prefix = b"\x6f";
+        } else {
+            prefix = b"\x00";
+        }
+        b.append(&mut prefix.to_vec());
+        b.append(&mut h160.to_vec());
+
+        encode_base58_checksum(&mut b)
     }
 }
 
@@ -307,7 +327,7 @@ mod tests {
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One};
 
-    use crate::{private_key::PrivateKey, signature::Signature, Point, N, helper::hash256};
+    use crate::{helper::hash256, private_key::PrivateKey, signature::Signature, Point, N};
 
     #[test]
     fn test_secp256k1() {
@@ -460,4 +480,16 @@ c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
         );
         res.clear();
     }
+
+    #[test]
+    fn test_address() {
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5002).unwrap());
+        let mut address = pri_key.point.address(false, true);
+
+        assert_eq!(
+            address,
+            "mmTPbXQFxboEtNRkwfh6K51jvdtHLxGeMA"
+        );
+    }
 }
+
