@@ -4,7 +4,7 @@ use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
-const BASE58_ALPHABET: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+pub const BASE58_ALPHABET: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 pub fn hash160(s: &[u8]) -> Vec<u8> {
     let mut hasher1 = Sha256::new();

@@ -486,10 +486,16 @@ c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
         let mut pri_key = PrivateKey::new(BigUint::from_u16(5002).unwrap());
         let mut address = pri_key.point.address(false, true);
 
-        assert_eq!(
-            address,
-            "mmTPbXQFxboEtNRkwfh6K51jvdtHLxGeMA"
-        );
+        assert_eq!(address, "mmTPbXQFxboEtNRkwfh6K51jvdtHLxGeMA");
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2020_u64.pow(5)).unwrap());
+        address = pri_key.point.address(true, true);
+
+        assert_eq!(address, "mopVkxp8UhXqRYbCYJsbeE1h1fiF64jcoH");
+
+        pri_key = PrivateKey::new(BigUint::from_str_radix("12345deadbeef", 16).unwrap());
+        address = pri_key.point.address(true, false);
+
+        assert_eq!(address, "1F1Pn2y6pDb68E5nYJJeba4TLg2U7B6KF1");
     }
 }
-
