@@ -323,6 +323,8 @@ impl Add for Point {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use finite_fields::FieldElement;
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One};
@@ -497,5 +499,11 @@ c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
         address = pri_key.point.address(true, false);
 
         assert_eq!(address, "1F1Pn2y6pDb68E5nYJJeba4TLg2U7B6KF1");
+
+        let hello_world = hex::encode("Hello World");
+        pri_key = PrivateKey::new(BigUint::from_str_radix(&hello_world, 16).unwrap());
+        address = pri_key.point.address(true, true);
+
+        println!("{:?}", address);
     }
 }
