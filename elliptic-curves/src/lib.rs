@@ -1,13 +1,14 @@
 use std::ops::Add;
 
-use finite_fields::FieldElement;
+use finite_fields::{FieldElement, P};
+use helper::{encode_base58_checksum, hash160};
 use num_bigint::BigUint;
 use num_traits::{FromPrimitive, Num, One, Zero};
-use sha2::{Digest, Sha256};
 use signature::Signature;
 
-pub mod signature;
+pub mod helper;
 pub mod private_key;
+pub mod signature;
 
 const A: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const B: &str = "0000000000000000000000000000000000000000000000000000000000000007";
@@ -121,22 +122,111 @@ impl Point {
         total.x.unwrap().num == sig.r
     }
 
-    pub fn hash256(s: &[u8]) -> [u8; 32] {
-        // First round of SHA-256
-        let mut hasher1 = Sha256::new();
-        hasher1.update(s);
-        let first_round_digest = hasher1.finalize();
+    pub fn sec(&self, compressed: bool) -> Vec<u8> {
+        let prefix_bytes: Vec<u8>;
+        let x_bytes: Vec<u8>;
+        let mut result = Vec::new();
+        let concated_res: Vec<u8>;
 
-        // Second round of SHA-256
-        let mut hasher2 = Sha256::new();
-        hasher2.update(first_round_digest);
-        let final_digest = hasher2.finalize();
+        if compressed {
+            if self.y.clone().unwrap().num % (BigUint::one() + BigUint::one()) == BigUint::zero() {
+                prefix_bytes = b"\x02".to_vec();
+                x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            } else {
+                prefix_bytes = b"\x03".to_vec();
+                x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            }
+            result.push(prefix_bytes);
+            result.push(x_bytes);
 
-        // Convert the final_digest to an array of 32 bytes
-        let mut result = [0u8; 32];
-        result.copy_from_slice(&final_digest);
+            concated_res = result.concat();
+        } else {
+            prefix_bytes = b"\x04".to_vec();
+            x_bytes = self.x.clone().unwrap().num.to_bytes_be();
+            let y_bytes = self.y.clone().unwrap().num.to_bytes_be();
 
-        result
+            result.push(prefix_bytes);
+            result.push(x_bytes);
+            result.push(y_bytes);
+
+            concated_res = result.concat();
+        }
+
+        concated_res
+    }
+
+    // when we get a serialized SEC pubkey, we can write a parse method to figure out which y we
+    // need:
+    pub fn parse(sec_bin: Vec<u8>) -> Self {
+        if let Some(zero) = sec_bin.get(0) {
+            if zero == &4 {
+                let (left, right) = sec_bin.split_at(33);
+                let x = BigUint::from_bytes_be(&left[1..]);
+                let y = BigUint::from_bytes_be(&right);
+                return Self::new(
+                    Some(FieldElement::new(x, None)),
+                    Some(FieldElement::new(y, None)),
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let is_even = if sec_bin.get(0) == Some(&2) {
+            true
+        } else {
+            false
+        };
+
+        let x = FieldElement::new(BigUint::from_bytes_be(&sec_bin[1..]), None);
+
+        // right side of the equation y ^ 2 = x^ 3 + 7
+        let alpha = x.to_the_power_of(BigUint::from_u8(3).unwrap())
+            + FieldElement::new(BigUint::from_u8(7).unwrap(), None);
+        // solve for left side
+        let beta = alpha.sqrt();
+
+        let even_beta: FieldElement;
+        let odd_beta: FieldElement;
+        if beta.clone().num % (BigUint::one() + BigUint::one()) == BigUint::zero() {
+            even_beta = beta.clone();
+            odd_beta = FieldElement::new(
+                BigUint::from_str_radix(P, 16).unwrap() - beta.clone().num,
+                None,
+            );
+        } else {
+            even_beta = FieldElement::new(
+                BigUint::from_str_radix(P, 16).unwrap() - beta.clone().num,
+                None,
+            );
+            odd_beta = beta.clone();
+        }
+
+        if is_even {
+            Self::new(Some(x), Some(even_beta), None, None)
+        } else {
+            Self::new(Some(x), Some(odd_beta), None, None)
+        }
+    }
+
+    pub fn hash160(&self, compressed: bool) -> Vec<u8> {
+        hash160(&self.sec(compressed))
+    }
+
+    pub fn address(&self, compressed: bool, testnet: bool) -> String {
+        let h160 = self.hash160(compressed);
+        let prefix;
+        let mut b = Vec::new();
+
+        if testnet {
+            prefix = b"\x6f";
+        } else {
+            prefix = b"\x00";
+        }
+        b.append(&mut prefix.to_vec());
+        b.append(&mut h160.to_vec());
+
+        encode_base58_checksum(&mut b)
     }
 }
 
@@ -233,93 +323,13 @@ impl Add for Point {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use finite_fields::FieldElement;
     use num_bigint::BigUint;
-    use num_traits::{FromPrimitive, Num, One, Zero};
+    use num_traits::{FromPrimitive, Num, One};
 
-    use crate::{signature::Signature, Point, N, private_key::PrivateKey};
-
-    macro_rules! biguint {
-        ($val: expr) => {
-            BigUint::from_u8($val).unwrap()
-        };
-    }
-
-    // #[test]
-    // fn test_equal() {
-    //     let prime = Some(biguint!(27));
-
-    //     let field_element1 = FieldElement::new(biguint!(-1), prime.clone());
-    //     let field_element2 = FieldElement::new(biguint!(-1), prime.clone());
-    //     let a = FieldElement::new(biguint!(5), prime.clone());
-    //     let b = FieldElement::new(biguint!(7), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1.clone()),
-    //         Some(field_element1),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element2.clone()),
-    //         Some(field_element2),
-    //         Some(a),
-    //         Some(b),
-    //     );
-
-    //     assert!(point1.equal(Some(point2)));
-    // }
-
-    // #[test]
-    // fn test_add() {
-    //     let mut prime = Some(ibig!(27));
-
-    //     let field_element1 = FieldElement::new(ibig!(-1), prime.clone());
-    //     let field_element2 = FieldElement::new(ibig!(1), prime.clone());
-    //     let a = FieldElement::new(ibig!(5), prime.clone());
-    //     let b = FieldElement::new(ibig!(7), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1.clone()),
-    //         Some(field_element1.clone()),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element1),
-    //         Some(field_element2),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let inf = Point::new(None, None, Some(a), Some(b));
-
-    //     assert_eq!(point1 + point2, inf);
-
-    //     // x1 != x2
-    //     prime = Some(ibig!(223));
-
-    //     let a = FieldElement::new(ibig!(0), prime.clone());
-    //     let b = FieldElement::new(ibig!(7), prime.clone());
-    //     let field_element1 = FieldElement::new(ibig!(170), prime.clone());
-    //     let field_element2 = FieldElement::new(ibig!(142), prime.clone());
-    //     let field_element3 = FieldElement::new(ibig!(60), prime.clone());
-    //     let field_element4 = FieldElement::new(ibig!(139), prime.clone());
-    //     let field_element5 = FieldElement::new(ibig!(220), prime.clone());
-    //     let field_element6 = FieldElement::new(ibig!(181), prime.clone());
-    //     let point1 = Point::new(
-    //         Some(field_element1),
-    //         Some(field_element2),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point2 = Point::new(
-    //         Some(field_element3),
-    //         Some(field_element4),
-    //         Some(a.clone()),
-    //         Some(b.clone()),
-    //     );
-    //     let point3 = Point::new(Some(field_element5), Some(field_element6), Some(a), Some(b));
-
-    //     assert_eq!(point1 + point2, point3);
-    // }
+    use crate::{helper::hash256, private_key::PrivateKey, signature::Signature, Point, N};
 
     #[test]
     fn test_secp256k1() {
@@ -377,9 +387,9 @@ mod tests {
 
     #[test]
     fn test_create_signature() {
-        let e = BigUint::from_bytes_be(&Point::hash256(b"my secret"));
+        let e = BigUint::from_bytes_be(&hash256(b"my secret"));
         // 0x231c6f3d980a6b0fb7152f85cee7eb52bf92433d9919b9c5218cb08e79cce78
-        let z = BigUint::from_bytes_be(&Point::hash256(b"my message"));
+        let z = BigUint::from_bytes_be(&hash256(b"my message"));
         let n = BigUint::from_str_radix(N, 16).unwrap();
 
         let k = BigUint::from_u32(1234567890).unwrap();
@@ -411,5 +421,89 @@ mod tests {
         let sig = pri_key.sign(z.clone());
 
         assert!(point.verify(&z, &sig))
+    }
+
+    #[test]
+    fn test_sec() {
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5000).unwrap());
+        let mut serialized = pri_key.point.sec(false);
+        let mut res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "04ffe558e388852f0120e46af2d1b370f85854a8eb0841811ece0e3e03d282d57c315dc72890a4\
+f10a1481c031b03b351b0dc79901ca18a00cf009dbdb157a1d10"
+        );
+        res.clear();
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2018_u64.pow(5)).unwrap());
+        serialized = pri_key.point.sec(false);
+        res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "04027f3da1918455e03c46f659266a1bb5204e959db7364d2f473bdf8f0a13cc9dff87647fd023\
+c13b4a4994f17691895806e1b40b57f4fd22581a4f46851f3b06"
+        );
+        res.clear();
+    }
+
+    #[test]
+    fn test_compressed_sec() {
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5001).unwrap());
+        let mut serialized = pri_key.point.sec(true);
+        let mut res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "0357a4f368868a8a6d572991e484e664810ff14c05c0fa023275251151fe0e53d1"
+        );
+        res.clear();
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2019_u64.pow(5)).unwrap());
+        serialized = pri_key.point.sec(true);
+        res = String::new();
+        for byte in serialized {
+            res.push_str(format!("{:02x}", byte).as_str());
+        }
+
+        assert_eq!(
+            res,
+            "02933ec2d2b111b92737ec12f1c5d20f3233a0ad21cd8b36d0bca7a0cfa5cb8701"
+        );
+        res.clear();
+    }
+
+    #[test]
+    fn test_address() {
+        let mut pri_key = PrivateKey::new(BigUint::from_u16(5002).unwrap());
+        let mut address = pri_key.point.address(false, true);
+
+        assert_eq!(address, "mmTPbXQFxboEtNRkwfh6K51jvdtHLxGeMA");
+
+        pri_key = PrivateKey::new(BigUint::from_u64(2020_u64.pow(5)).unwrap());
+        address = pri_key.point.address(true, true);
+
+        assert_eq!(address, "mopVkxp8UhXqRYbCYJsbeE1h1fiF64jcoH");
+
+        pri_key = PrivateKey::new(BigUint::from_str_radix("12345deadbeef", 16).unwrap());
+        address = pri_key.point.address(true, false);
+
+        assert_eq!(address, "1F1Pn2y6pDb68E5nYJJeba4TLg2U7B6KF1");
+
+        let hello_world = hex::encode("Hello World");
+        pri_key = PrivateKey::new(BigUint::from_str_radix(&hello_world, 16).unwrap());
+        address = pri_key.point.address(true, true);
+
+        println!("{:?}", address);
     }
 }
