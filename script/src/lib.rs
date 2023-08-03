@@ -1,6 +1,10 @@
 pub struct Script {}
 
-#[cfg(test)]
-mod tests {
-
+impl Script {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
+
+#[cfg(test)]
+mod tests {}
