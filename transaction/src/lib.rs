@@ -1,6 +1,9 @@
+use elliptic_curves::helper::hash256;
+use hex::ToHex;
 use num_bigint::BigUint;
 
 pub mod txin;
+pub mod txout;
 
 pub struct Tx {
     version: u32,
@@ -27,6 +30,15 @@ impl Tx {
         }
     }
 
+    // pub fn id(&self) -> String {
+    //     // Human-readable hexadecimal of the transaction hash
+    //     self.hash().encode_hex()
+    // }
+
+    // pub fn hash(&self) -> Vec<u8> {
+    //     // Binary hash of the legacy serialization
+    //     hash256(self.serialize())[..1].to_vec()
+    // }
 }
 
 #[cfg(test)]

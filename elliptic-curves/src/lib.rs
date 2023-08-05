@@ -323,8 +323,6 @@ impl Add for Point {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use finite_fields::FieldElement;
     use num_bigint::BigUint;
     use num_traits::{FromPrimitive, Num, One};

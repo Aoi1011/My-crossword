@@ -53,6 +53,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "elliptic-curves"
+version = "0.1.0"
+dependencies = [
+ "finite-fields",
+ "hex",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "rand",
+ "ripemd",
+ "sha2",
+]
+
+[[package]]
+name = "finite-fields"
+version = "0.1.0"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -180,6 +202,7 @@ dependencies = [
 name = "transaction"
 version = "0.1.0"
 dependencies = [
+ "elliptic-curves",
  "hex",
  "num-bigint",
  "num-integer",
