@@ -28,20 +28,20 @@ pub fn encode_num(num: i32) -> Vec<u8> {
     result
 }
 
-pub fn decode_num(element: &mut Vec<u8>) -> i32 {
-    if element.is_empty() {
+pub fn decode_num(elements: &mut Vec<u8>) -> i32 {
+    if elements.is_empty() {
         return 0;
     }
 
     // reverse for big endian
-    element.reverse();
+    elements.reverse();
 
     // top bit being 1 means it's negative
-    let negative = element[0] & 0x80 != 0;
+    let negative = elements[0] & 0x80 != 0;
 
-    let mut result = (element[0] & 0x7f) as i32;
+    let mut result = (elements[0] & 0x7f) as i32;
 
-    for &c in &element[1..] {
+    for &c in &elements[1..] {
         result <<= 8;
         result += c as i32;
     }
@@ -336,5 +336,87 @@ pub fn op_2over(stack: &mut Vec<u8>) -> bool {
     let len = stack.len();
     let slice = stack[len - 4..len - 2].to_vec();
     stack.extend_from_slice(&slice);
+    true
+}
+
+pub fn op_2rot(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 6 {
+        return false;
+    }
+
+    let len = stack.len();
+    let slice = stack[len - 6..len - 4].to_vec();
+    stack.extend_from_slice(&slice);
+    true
+}
+
+pub fn op_2swap(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 4 {
+        return false;
+    }
+
+    let len = stack.len();
+    let last_two = &stack[len - 2..];
+    let before_last_two = &stack[len - 4..len - 2];
+
+    let mut new_stack = Vec::new();
+    new_stack.extend_from_slice(last_two);
+    new_stack.extend_from_slice(before_last_two);
+
+    stack.splice(len - 4..len, new_stack);
+
+    true
+}
+
+pub fn op_ifdup(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return true;
+    }
+
+    if let Some(last_elem) = stack.last() {
+        if decode_num(&mut last_elem.to_be_bytes().to_vec()) != 0 {
+            stack.push(*last_elem);
+        }
+    }
+
+    true
+}
+
+pub fn op_depth(stack: &mut Vec<u8>) -> bool {
+    let len = stack.len();
+    stack.append(&mut encode_num(len as i32));
+    true
+}
+
+pub fn op_drop(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    stack.pop();
+
+    true
+}
+
+pub fn op_dup(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(last_elem) = stack.last() {
+        stack.push(*last_elem);
+    }
+
+    true
+}
+
+pub fn op_nip(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let len = stack.len();
+    stack.remove(len - 2);
+
     true
 }
