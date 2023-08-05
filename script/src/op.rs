@@ -148,34 +148,39 @@ pub fn op_nop(_stack: &mut Vec<u8>) -> bool {
 }
 
 pub fn op_if(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
-    if stack.len() < 1 {
+    if stack.is_empty() {
         return false;
     }
 
     // go through and re-make the items array based on the top stack element
-    let mut true_items = Vec::new();
-    let mut false_items: Vec<u8> = Vec::new();
-    let mut current_array = true_items.clone();
+    let mut true_branch = Vec::new();
+    let mut false_branch: Vec<u8> = Vec::new();
+    let mut current_array = &mut true_branch;
     let mut found = false;
     let mut num_endifs_needed = 1;
 
-    while items.len() > 0 {
+    while !items.is_empty() {
         let item = items.remove(0);
-        if matches!(item, 99 | 100) {
-            num_endifs_needed += 1;
-            current_array.push(item);
-        } else if num_endifs_needed == 1 && item == 103 {
-            current_array = false_items.clone();
-        } else if item == 104 {
-            if num_endifs_needed == 1 {
-                found = true;
-                break;
-            } else {
-                num_endifs_needed -= 1;
+        match item {
+            99 | 100 => {
+                num_endifs_needed += 1;
+                current_array.push(item);
+            }, 
+            103 if num_endifs_needed == 1 => {
+                current_array = &mut false_branch;
+            },
+            104 => {
+                if num_endifs_needed == 1 {
+                    found = true;
+                    break;
+                } else {
+                    num_endifs_needed -= 1;
+                    current_array.push(item);
+                }
+            },
+            _ =>  {
                 current_array.push(item);
             }
-        } else {
-            current_array.push(item);
         }
     }
 
@@ -185,11 +190,11 @@ pub fn op_if(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
 
     if let Some(element) = stack.pop() {
         if decode_num(&mut element.to_be_bytes().to_vec()) == 0 {
-            false_items.append(items);
-            *items = false_items;
+            false_branch.append(items);
+            *items = false_branch;
         } else {
-            true_items.append(items);
-            *items = true_items;
+            true_branch.append(items);
+            *items = true_branch;
         }
     }
 
