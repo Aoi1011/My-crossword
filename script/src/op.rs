@@ -165,10 +165,10 @@ pub fn op_if(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
             99 | 100 => {
                 num_endifs_needed += 1;
                 current_array.push(item);
-            }, 
+            }
             103 if num_endifs_needed == 1 => {
                 current_array = &mut false_branch;
-            },
+            }
             104 => {
                 if num_endifs_needed == 1 {
                     found = true;
@@ -177,8 +177,8 @@ pub fn op_if(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
                     num_endifs_needed -= 1;
                     current_array.push(item);
                 }
-            },
-            _ =>  {
+            }
+            _ => {
                 current_array.push(item);
             }
         }
@@ -198,5 +198,143 @@ pub fn op_if(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
         }
     }
 
+    true
+}
+
+pub fn op_notif(stack: &mut Vec<u8>, items: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    // go through and re-make the items array based on the top stack element
+    let mut true_branch = Vec::new();
+    let mut false_branch = Vec::new();
+    let mut current_array = &mut true_branch;
+    let mut found = false;
+    let mut num_endifs_needed = 1;
+    while !items.is_empty() {
+        let item = items.remove(0);
+        match item {
+            99 | 100 => {
+                num_endifs_needed += 1;
+                current_array.push(item);
+            }
+            103 if num_endifs_needed == 1 => {
+                current_array = &mut false_branch;
+            }
+            104 => {
+                if num_endifs_needed == 1 {
+                    found = true;
+                    break;
+                } else {
+                    num_endifs_needed -= 1;
+                    current_array.push(item);
+                }
+            }
+            _ => {
+                current_array.push(item);
+            }
+        }
+    }
+    if !found {
+        return false;
+    }
+
+    if let Some(element) = stack.pop() {
+        if decode_num(&mut element.to_be_bytes().to_vec()) == 0 {
+            true_branch.append(items);
+            *items = true_branch;
+        } else {
+            false_branch.append(items);
+            *items = false_branch;
+        }
+    }
+
+    true
+}
+
+pub fn op_verify(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(element) = stack.pop() {
+        if decode_num(&mut element.to_be_bytes().to_vec()) == 0 {
+            return false;
+        }
+    }
+
+    true
+}
+
+pub fn op_return(_stack: &mut Vec<u8>) -> bool {
+    false
+}
+
+pub fn op_toaltstack(stack: &mut Vec<u8>, altstack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(elem) = stack.pop() {
+        altstack.push(elem);
+    }
+
+    true
+}
+
+pub fn op_formalstack(stack: &mut Vec<u8>, altstack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(elem) = altstack.pop() {
+        stack.push(elem);
+    }
+
+    true
+}
+
+pub fn op_2drop(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    stack.pop();
+    stack.pop();
+
+    true
+}
+
+pub fn op_2dup(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let len = stack.len();
+    let last_two = stack[len - 2..].to_vec();
+    stack.extend_from_slice(&last_two);
+    true
+}
+
+pub fn op_3dup(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 3 {
+        return false;
+    }
+
+    let len = stack.len();
+    let last_three = stack[len - 3..].to_vec();
+    stack.extend_from_slice(&last_three);
+    true
+}
+
+pub fn op_2over(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 4 {
+        return false;
+    }
+
+    let len = stack.len();
+    let slice = stack[len - 4..len - 2].to_vec();
+    stack.extend_from_slice(&slice);
     true
 }
