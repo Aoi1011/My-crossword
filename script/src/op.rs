@@ -1,3 +1,6 @@
+use ripemd::Ripemd160;
+use sha2::{Digest, Sha256};
+
 pub fn encode_num(num: i32) -> Vec<u8> {
     if num == 0 {
         return Vec::new();
@@ -562,5 +565,324 @@ pub fn op_1sub(stack: &mut Vec<u8>) -> bool {
         let element = decode_num(&mut last_el.to_be_bytes().to_vec());
         stack.append(&mut encode_num(element - 1));
     }
+    true
+}
+
+pub fn op_negate(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element = decode_num(&mut last_el.to_be_bytes().to_vec());
+    stack.append(&mut encode_num(-element));
+
+    true
+}
+
+pub fn op_abs(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element = decode_num(&mut last_el.to_be_bytes().to_vec());
+    if element < 0 {
+        stack.append(&mut encode_num(-element));
+    } else {
+        stack.append(&mut encode_num(element));
+    }
+
+    true
+}
+
+pub fn op_not(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let element = stack.pop().unwrap();
+    if decode_num(&mut element.to_be_bytes().to_vec()) == 0 {
+        stack.append(&mut encode_num(1));
+    } else {
+        stack.append(&mut encode_num(0));
+    }
+
+    true
+}
+
+pub fn op_0notequal(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let element = stack.pop().unwrap();
+    if decode_num(&mut element.to_be_bytes().to_vec()) == 0 {
+        stack.append(&mut encode_num(0));
+    } else {
+        stack.append(&mut encode_num(1));
+    }
+
+    true
+}
+
+pub fn op_add(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    stack.append(&mut encode_num(element1 + element2));
+
+    true
+}
+
+pub fn op_sub(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    stack.append(&mut encode_num(element2 - element1));
+
+    true
+}
+
+pub fn op_booland(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element1 != 0 && element2 != 0 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_boolor(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element1 != 0 || element2 != 0 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_numequal(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element1 == element2 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_numequalverify(stack: &mut Vec<u8>) -> bool {
+    op_numequal(stack) && op_verify(stack)
+}
+
+pub fn op_numnotequal(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element1 == element2 { 0 } else { 1 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_lessthan(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element2 < element1 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_greaterthan(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element2 > element1 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_lessthanorequal(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element2 <= element1 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_greaterthanorequal(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element2 >= element1 { 1 } else { 0 };
+
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_min(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    if element1 < element2 {
+        stack.append(&mut encode_num(element1));
+    } else {
+        stack.append(&mut encode_num(element2));
+    };
+
+    true
+}
+
+pub fn op_max(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let element1 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element2 = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    if element1 > element2 {
+        stack.append(&mut encode_num(element1));
+    } else {
+        stack.append(&mut encode_num(element2));
+    };
+
+    true
+}
+
+pub fn op_within(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 3 {
+        return false;
+    }
+
+    let last_el = stack.pop().unwrap();
+    let maximum = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let minimum = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let last_el = stack.pop().unwrap();
+    let element = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+    let res = if element >= minimum && element < maximum {
+        1
+    } else {
+        0
+    };
+    stack.append(&mut encode_num(res));
+
+    true
+}
+
+pub fn op_ripemd160(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let element = stack.pop().unwrap();
+    let mut hasher1 = Sha256::new();
+    hasher1.update(element.to_be_bytes());
+    let digest = hasher1.finalize();
+
+    let res = Ripemd160::digest(digest);
+
+    stack.append(&mut res.to_vec());
+
     true
 }
