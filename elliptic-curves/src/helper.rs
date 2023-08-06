@@ -72,6 +72,15 @@ pub fn encode_base58_checksum(b: &mut Vec<u8>) -> String {
     encode_base58(b)
 }
 
+// pub fn decode_base58(s: &Vec<u8>) -> Vec<u8> {
+//     let mut num = 0;
+// 
+//     for c in s {
+//         num *= 58;
+//         num += BASE58_ALPHABET.chars().
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::encode_base58;
