@@ -420,3 +420,147 @@ pub fn op_nip(stack: &mut Vec<u8>) -> bool {
 
     true
 }
+
+pub fn op_over(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let len = stack.len();
+    if let Some(last_two_el) = stack.get(len - 2) {
+        stack.push(*last_two_el);
+    }
+
+    true
+}
+
+pub fn op_pick(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(last_el) = stack.pop() {
+        let n = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+        if stack.len() < n as usize + 1 {
+            return false;
+        }
+
+        let index = stack.len() - (n as usize) - 1;
+        let element = stack[index];
+        stack.push(element);
+    }
+
+    true
+}
+
+pub fn op_roll(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(last_el) = stack.pop() {
+        let n = decode_num(&mut last_el.to_be_bytes().to_vec());
+
+        if stack.len() < n as usize + 1 {
+            return false;
+        }
+
+        let index = stack.len() - (n as usize) - 1;
+        let element = stack.remove(index);
+        stack.push(element);
+    }
+
+    true
+}
+
+pub fn op_rot(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 3 {
+        return false;
+    }
+
+    let len = stack.len();
+    let element = stack.remove(len - 3);
+    stack.push(element);
+
+    true
+}
+
+pub fn op_swap(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let len = stack.len();
+    let element = stack.remove(len - 2);
+    stack.push(element);
+
+    true
+}
+
+pub fn op_tuck(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let len = stack.len();
+    if let Some(element) = stack.get(len - 1) {
+        stack.insert(len - 2, *element);
+    }
+
+    true
+}
+
+// pub fn op_size(stack: &mut Vec<u8>) -> bool {
+//     if stack.is_empty() {
+//         return false;
+//     }
+//
+//     let size = stack.last().unwrap();
+// }
+
+pub fn op_equal(stack: &mut Vec<u8>) -> bool {
+    if stack.len() < 2 {
+        return false;
+    }
+
+    let element1 = stack.pop().unwrap();
+    let element2 = stack.pop().unwrap();
+
+    if element1 == element2 {
+        stack.append(&mut encode_num(1));
+    } else {
+        stack.append(&mut encode_num(0));
+    }
+
+    true
+}
+
+pub fn op_equalverify(stack: &mut Vec<u8>) -> bool {
+    op_equal(stack) && op_verify(stack)
+}
+
+pub fn op_1add(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(last_el) = stack.pop() {
+        let element = decode_num(&mut last_el.to_be_bytes().to_vec());
+        stack.append(&mut encode_num(element + 1));
+    }
+
+    true
+}
+
+pub fn op_1sub(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(last_el) = stack.pop() {
+        let element = decode_num(&mut last_el.to_be_bytes().to_vec());
+        stack.append(&mut encode_num(element - 1));
+    }
+    true
+}
