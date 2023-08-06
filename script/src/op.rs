@@ -1,3 +1,4 @@
+use elliptic_curves::helper::hash256;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
@@ -886,3 +887,102 @@ pub fn op_ripemd160(stack: &mut Vec<u8>) -> bool {
 
     true
 }
+
+// pub fn op_sha1(stack: &mut Vec<u8>) -> bool {
+//     if stack.is_empty() {
+//         return false;
+//     }
+//
+//     let element = stack.pop().unwrap();
+//     let mut hasher1 = Sha1::new();
+//     hasher1.update(element.to_be_bytes());
+//     let digest = hasher1.finalize();
+//
+//     stack.append(&mut digest.to_vec());
+//
+//     true
+// }
+
+pub fn op_sha256(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let element = stack.pop().unwrap();
+    let mut hasher1 = Sha256::new();
+    hasher1.update(element.to_be_bytes());
+    let digest = hasher1.finalize();
+
+    stack.append(&mut digest.to_vec());
+
+    true
+}
+
+// pub fn op_hash160(stack: &mut Vec<u8>) -> bool {
+//     true
+// }
+
+pub fn op_hash256(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    let element = stack.pop().unwrap();
+    stack.append(&mut hash256(&element.to_be_bytes()).to_vec());
+
+    true
+}
+
+// pub fn op_checksig(stack: &mut Vec<u8>, z: u32) -> bool {}
+
+// pub fn op_checksigverify(stack: &mut Vec<u8>, z: u32) -> bool {}
+
+// pub fn op_checkmultisig(stack: &mut Vec<u8>, z: u32) -> bool {}
+
+// pub fn op_checkmultisigverify(stack: &mut Vec<u8>, z: u32) -> bool {}
+
+pub fn op_checklocktimeverify(stack: &Vec<i64>, locktime: i64, sequence: i64) -> bool {
+    if sequence == 0xffffffff {
+        return false;
+    }
+    if stack.is_empty() {
+        return false;
+    }
+    let element = stack.last().unwrap();
+    if *element < 0 {
+        return false;
+    }
+    if *element < 500000000 && locktime > 500000000 {
+        return false;
+    }
+    if locktime < *element {
+        return false;
+    }
+    true
+}
+
+pub fn op_checksequenceverify(stack: &Vec<i64>, version: i64, sequence: i64) -> bool {
+    if sequence & (1 << 31) == (1 << 31) {
+        return false;
+    }
+    if stack.is_empty() {
+        return false;
+    }
+    let element = stack.last().unwrap();
+    if *element < 0 {
+        return false;
+    }
+    if element & (1 << 31) == (1 << 31) {
+        if version < 2 {
+            return false;
+        } else if sequence & (1 << 31) == (1 << 31) {
+            return false;
+        } else if element & (1 << 22) != sequence & (1 << 22) {
+            return false;
+        } else if element & 0xffff > sequence & 0xffff {
+            return false;
+        }
+    }
+    true
+}
+
