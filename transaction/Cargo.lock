@@ -186,6 +186,14 @@ dependencies = [
 [[package]]
 name = "script"
 version = "0.1.0"
+dependencies = [
+ "elliptic-curves",
+ "hex",
+ "num-integer",
+ "rand",
+ "ripemd",
+ "sha2",
+]
 
 [[package]]
 name = "sha2"

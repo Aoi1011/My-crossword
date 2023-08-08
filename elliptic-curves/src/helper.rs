@@ -1,3 +1,5 @@
+use std::io::{Error, Read};
+
 use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, ToPrimitive, Zero};
@@ -74,12 +76,54 @@ pub fn encode_base58_checksum(b: &mut Vec<u8>) -> String {
 
 // pub fn decode_base58(s: &Vec<u8>) -> Vec<u8> {
 //     let mut num = 0;
-// 
+//
 //     for c in s {
 //         num *= 58;
 //         num += BASE58_ALPHABET.chars().
 //     }
 // }
+
+/// read_varint reads a variable integer from a stream
+pub fn read_varint<R: Read>(stream: &mut R) -> Result<u64, Error> {
+    let mut i_buf = [0u8; 1];
+    let _ = stream.read_exact(&mut i_buf)?;
+
+    let i = i_buf[0];
+
+    match i {
+        0xfd => {
+            // 0xfd means the next two bytes are the number
+            let mut buf = [0u8; 2];
+            stream.read_exact(&mut buf)?;
+            Ok(u64::from(buf[0]) | (u64::from(buf[1]) << 8))
+        }
+        0xfe => {
+            // 0xfe means the next four bytes are the number
+            let mut buf = [0u8; 4];
+            stream.read_exact(&mut buf)?;
+            Ok(u64::from(buf[0])
+                | (u64::from(buf[1]) << 8)
+                | (u64::from(buf[2]) << 16)
+                | (u64::from(buf[3]) << 24))
+        }
+        0xff => {
+            // 0xff means the next eight bytes are the number
+            let mut buf = [0u8; 8];
+            stream.read_exact(&mut buf)?;
+            Ok(u64::from(buf[0])
+                | (u64::from(buf[1]) << 8)
+                | (u64::from(buf[2]) << 16)
+                | (u64::from(buf[3]) << 24)
+                | (u64::from(buf[4]) << 32)
+                | (u64::from(buf[5]) << 40)
+                | (u64::from(buf[6]) << 48)
+                | (u64::from(buf[7]) << 56))
+        }
+        _ => Ok(i as u64),
+    }
+}
+
+pub fn encode_varint() {}
 
 #[cfg(test)]
 mod tests {
