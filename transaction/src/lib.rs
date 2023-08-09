@@ -7,6 +7,7 @@ use elliptic_curves::helper::{hash256, read_varint};
 use hex::ToHex;
 use num_bigint::BigUint;
 use txin::TxIn;
+use txout::TxOut;
 
 pub mod txin;
 pub mod txout;
@@ -14,7 +15,7 @@ pub mod txout;
 pub struct Tx {
     pub version: u32,
     pub tx_ins: Option<Vec<TxIn>>,
-    pub tx_outs: Option<Vec<BigUint>>,
+    pub tx_outs: Option<Vec<TxOut>>,
     pub locktime: u32,
     pub testnet: bool,
 }
@@ -23,7 +24,7 @@ impl Tx {
     pub fn new(
         version: u32,
         tx_ins: Vec<TxIn>,
-        tx_outs: Vec<BigUint>,
+        tx_outs: Vec<TxOut>,
         locktime: u32,
         testnet: bool,
     ) -> Self {
@@ -58,10 +59,16 @@ impl Tx {
             inputs.push(TxIn::parse(&mut stream)?)
         }
 
+        let num_outputs = read_varint(&mut stream)?;
+        let mut outputs = Vec::new();
+        for _ in 0..num_outputs {
+            outputs.push(TxOut::parse(&mut stream)?)
+        }
+
         Ok(Self {
             version: u32::from_le_bytes(version),
             tx_ins: Some(inputs),
-            tx_outs: None,
+            tx_outs: Some(outputs),
             locktime: 0,
             testnet,
         })
