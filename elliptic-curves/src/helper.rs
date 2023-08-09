@@ -83,6 +83,17 @@ pub fn encode_base58_checksum(b: &mut Vec<u8>) -> String {
 //     }
 // }
 
+pub fn int_to_little_endian(mut n: u128, size: usize) -> Vec<u8> {
+    let mut result = Vec::with_capacity(size);
+    for _ in 0..size {
+        result.push((n & 0xff) as u8);
+        n >>= 8;
+    }
+    // Reversing the order to match little-endian representation
+    result.reverse();
+    result
+}
+
 /// read_varint reads a variable integer from a stream
 pub fn read_varint<R: Read>(stream: &mut R) -> Result<u64, Error> {
     let mut i_buf = [0u8; 1];
@@ -123,7 +134,33 @@ pub fn read_varint<R: Read>(stream: &mut R) -> Result<u64, Error> {
     }
 }
 
-pub fn encode_varint() {}
+/// encodes an integer as a varint
+pub fn encode_varint(i: u128) -> Vec<u8> {
+    match i {
+        i if i < 0xfd => vec![i as u8],
+        i if i < 0x10000 => {
+            let mut result = Vec::new();
+            result.push(0xfd);
+            result.extend_from_slice(&int_to_little_endian(i, 2));
+            result
+        }
+        i if i < 0x100000000 => {
+            let mut result = Vec::new();
+            result.push(0xfe);
+            result.extend_from_slice(&int_to_little_endian(i, 4));
+            result
+        }
+        i if i < 0x10000000000000000 => {
+            let mut result = Vec::new();
+            result.push(0xff);
+            result.extend_from_slice(&int_to_little_endian(i, 8));
+            result
+        }
+        _ => {
+            panic!("integer too large: {}", i)
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

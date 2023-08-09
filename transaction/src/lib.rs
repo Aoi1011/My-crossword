@@ -1,24 +1,28 @@
-use std::{io::Read, net::TcpStream};
+use std::{
+    io::{self, Read},
+    net::TcpStream,
+};
 
-use elliptic_curves::helper::hash256;
+use elliptic_curves::helper::{hash256, read_varint};
 use hex::ToHex;
 use num_bigint::BigUint;
+use txin::TxIn;
 
 pub mod txin;
 pub mod txout;
 
 pub struct Tx {
-    version: u32,
-    tx_ins: Option<Vec<BigUint>>,
-    tx_outs: Option<Vec<BigUint>>,
-    locktime: u32,
-    testnet: bool,
+    pub version: u32,
+    pub tx_ins: Option<Vec<TxIn>>,
+    pub tx_outs: Option<Vec<BigUint>>,
+    pub locktime: u32,
+    pub testnet: bool,
 }
 
 impl Tx {
     pub fn new(
         version: u32,
-        tx_ins: Vec<BigUint>,
+        tx_ins: Vec<TxIn>,
         tx_outs: Vec<BigUint>,
         locktime: u32,
         testnet: bool,
@@ -42,20 +46,25 @@ impl Tx {
     //     hash256(self.serialize())[..1].to_vec()
     // }
 
-    pub fn parse(&self, stream: Vec<u8>, testnet: bool) -> Self {
-        let mut version = [0u8; 4];
-
+    pub fn parse(&self, stream: &mut Vec<u8>, testnet: bool) -> Result<Self, io::Error> {
         let mut stream = &stream[..];
 
-        let _ = stream.read_exact(&mut version).unwrap();
+        let mut version = [0u8; 4];
+        stream.read_exact(&mut version)?;
 
-        Self {
+        let num_inputs = read_varint(&mut stream)?;
+        let mut inputs = Vec::new();
+        for _ in 0..num_inputs {
+            inputs.push(TxIn::parse(&mut stream)?)
+        }
+
+        Ok(Self {
             version: u32::from_le_bytes(version),
-            tx_ins: None,
+            tx_ins: Some(inputs),
             tx_outs: None,
             locktime: 0,
             testnet,
-        }
+        })
     }
 }
 
@@ -64,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_parse_tx() {
-        let hex_transaction = "010000000456919960ac691763688d3d3bcea9ad6ecaf875df5339e\
+        let _hex_transaction = "010000000456919960ac691763688d3d3bcea9ad6ecaf875df5339e\
 148a1fc61c6ed7a069e010000006a47304402204585bcdef85e6b1c6af5c2669d4830ff86e42dd\
 205c0e089bc2a821657e951c002201024a10366077f87d6bce1f7100ad8cfa8a064b39d4e8fe4e\
 a13a7b71aa8180f012102f0da57e85eec2934a82a585ea337ce2f4998b50ae699dd79f5880e253\

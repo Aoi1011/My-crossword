@@ -6,6 +6,10 @@ impl Script {
     pub fn new() -> Self {
         Self {}
     }
+
+    pub fn parse() -> Self {
+        Self {}
+    }
 }
 
 #[cfg(test)]
