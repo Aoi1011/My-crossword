@@ -78,6 +78,7 @@ impl Tx {
 mod tests {
     use std::io::Cursor;
 
+    use bitcoin::{Transaction, consensus::deserialize};
     use hex::FromHex;
 
     use crate::Tx;
@@ -104,8 +105,9 @@ b6dbf67d4750b0a56244948a87988ac005a6202000000001976a9143c82d7df364eb6c75be8c80\
 df2b3eda8db57397088ac46430600";
 
         let stream = Vec::from_hex(hex_transaction).unwrap();
-        let mut cursor = Cursor::new(stream);
-        let tx_obj = Tx::parse(&mut cursor, false).unwrap();
+        // let mut cursor = Cursor::new(stream);
+        // let tx_obj = Tx::parse(&mut cursor, false).unwrap();
+        let tx: Transaction = deserialize(&stream).unwrap();
 
         //         assert_eq!(
         //             tx_obj.tx_ins.unwrap()[1].script_sig,
@@ -114,6 +116,6 @@ df2b3eda8db57397088ac46430600";
         // 6881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"
         //         )
 
-        assert_eq!(tx_obj.tx_outs.unwrap()[1].amount, 40000000);
+        assert_eq!(tx.output[1].value, 40000000);
     }
 }
