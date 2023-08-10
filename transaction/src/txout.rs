@@ -1,11 +1,10 @@
 use std::io::{self, Read};
 
-use num_bigint::BigUint;
 use script::Script;
 
 pub struct TxOut {
-    amount: u64,
-    script_pubkey: Script,
+    pub amount: u64,
+    pub script_pubkey: Script,
 }
 
 impl TxOut {

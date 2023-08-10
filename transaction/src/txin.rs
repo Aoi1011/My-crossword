@@ -6,10 +6,10 @@ use script::Script;
 use crate::Tx;
 
 pub struct TxIn {
-    prev_tx: [u8; 32],
-    prev_index: u32,
-    script_sig: Option<Script>,
-    sequence: u32,
+    pub prev_tx: [u8; 32],
+    pub prev_index: u32,
+    pub script_sig: Option<Script>,
+    pub sequence: u32,
 }
 
 impl TxIn {
@@ -37,7 +37,7 @@ impl TxIn {
         let mut prev_tx = [0u8; 32];
         stream.read_exact(&mut prev_tx)?;
 
-        let mut prev_index = {
+        let prev_index = {
             let mut buf = [0u8; 4];
             stream.read_exact(&mut buf)?;
             u32::from_le_bytes(buf)
@@ -45,7 +45,7 @@ impl TxIn {
 
         let script_sig = Script::parse();
 
-        let mut sequence = {
+        let sequence = {
             let mut buf = [0u8; 4];
             stream.read_exact(&mut buf)?;
             u32::from_le_bytes(buf)

@@ -1,11 +1,6 @@
-use std::{
-    io::{self, Read},
-    net::TcpStream,
-};
+use std::io::{self, Cursor, Read};
 
-use elliptic_curves::helper::{hash256, read_varint};
-use hex::ToHex;
-use num_bigint::BigUint;
+use elliptic_curves::helper::read_varint;
 use txin::TxIn;
 use txout::TxOut;
 
@@ -47,27 +42,31 @@ impl Tx {
     //     hash256(self.serialize())[..1].to_vec()
     // }
 
-    pub fn parse(&self, stream: &mut Vec<u8>, testnet: bool) -> Result<Self, io::Error> {
-        let mut stream = &stream[..];
+    pub fn parse(stream: &mut Cursor<Vec<u8>>, testnet: bool) -> Result<Self, io::Error> {
+        // let mut stream = &stream[..];
 
         let mut version = [0u8; 4];
         stream.read_exact(&mut version)?;
 
-        let num_inputs = read_varint(&mut stream)?;
+        let num_inputs = read_varint(stream)?;
+
         let mut inputs = Vec::new();
         for _ in 0..num_inputs {
-            inputs.push(TxIn::parse(&mut stream)?)
+            inputs.push(TxIn::parse(stream)?)
         }
 
-        let num_outputs = read_varint(&mut stream)?;
+        let num_outputs = read_varint(stream)?;
         let mut outputs = Vec::new();
         for _ in 0..num_outputs {
-            outputs.push(TxOut::parse(&mut stream)?)
+            outputs.push(TxOut::parse(stream)?)
         }
+
+        // let mut locktime = [0u8; 4];
+        // stream.read_exact(&mut locktime)?;
 
         Ok(Self {
             version: u32::from_le_bytes(version),
-            tx_ins: Some(inputs),
+            tx_ins: None,
             tx_outs: Some(outputs),
             locktime: 0,
             testnet,
@@ -77,10 +76,15 @@ impl Tx {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
+    use hex::FromHex;
+
+    use crate::Tx;
 
     #[test]
     fn test_parse_tx() {
-        let _hex_transaction = "010000000456919960ac691763688d3d3bcea9ad6ecaf875df5339e\
+        let hex_transaction = "010000000456919960ac691763688d3d3bcea9ad6ecaf875df5339e\
 148a1fc61c6ed7a069e010000006a47304402204585bcdef85e6b1c6af5c2669d4830ff86e42dd\
 205c0e089bc2a821657e951c002201024a10366077f87d6bce1f7100ad8cfa8a064b39d4e8fe4e\
 a13a7b71aa8180f012102f0da57e85eec2934a82a585ea337ce2f4998b50ae699dd79f5880e253\
@@ -98,5 +102,18 @@ bc8023693ad4e9527dc42c34210f7a7d1d1ddfc8492b654a11e7620a0012102158b46fbdff65d0\
 2eb4cff0ad6006e86ee20dfe7520d55feffffff0251430f00000000001976a914ab0c0b2e98b1a\
 b6dbf67d4750b0a56244948a87988ac005a6202000000001976a9143c82d7df364eb6c75be8c80\
 df2b3eda8db57397088ac46430600";
+
+        let stream = Vec::from_hex(hex_transaction).unwrap();
+        let mut cursor = Cursor::new(stream);
+        let tx_obj = Tx::parse(&mut cursor, false).unwrap();
+
+        //         assert_eq!(
+        //             tx_obj.tx_ins.unwrap()[1].script_sig,
+        //             "304402207899531a52d59a6de200179928ca900254a36b8dff8bb75f5f5d71b1cdc26125022008\
+        // b422690b8461cb52c3cc30330b23d574351872b7c361e9aae3649071c1a71601 035d5c93d9ac9\
+        // 6881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"
+        //         )
+
+        assert_eq!(tx_obj.tx_outs.unwrap()[1].amount, 40000000);
     }
 }
