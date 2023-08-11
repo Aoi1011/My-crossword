@@ -1,5 +1,6 @@
-use std::io::{self, Cursor, Read};
+use std::io::{self, Cursor};
 
+use bitcoin::consensus::encode::Decodable;
 use elliptic_curves::helper::read_varint;
 use txin::TxIn;
 use txout::TxOut;
@@ -8,16 +9,16 @@ pub mod txin;
 pub mod txout;
 
 pub struct Tx {
-    pub version: u32,
-    pub tx_ins: Option<Vec<TxIn>>,
-    pub tx_outs: Option<Vec<TxOut>>,
+    pub version: i32,
+    pub tx_ins: Vec<TxIn>,
+    pub tx_outs: Vec<TxOut>,
     pub locktime: u32,
     pub testnet: bool,
 }
 
 impl Tx {
     pub fn new(
-        version: u32,
+        version: i32,
         tx_ins: Vec<TxIn>,
         tx_outs: Vec<TxOut>,
         locktime: u32,
@@ -25,8 +26,8 @@ impl Tx {
     ) -> Self {
         Self {
             version,
-            tx_ins: Some(tx_ins),
-            tx_outs: Some(tx_outs),
+            tx_ins,
+            tx_outs,
             locktime,
             testnet,
         }
@@ -45,29 +46,30 @@ impl Tx {
     pub fn parse(stream: &mut Cursor<Vec<u8>>, testnet: bool) -> Result<Self, io::Error> {
         // let mut stream = &stream[..];
 
-        let mut version = [0u8; 4];
-        stream.read_exact(&mut version)?;
+        // let mut version = [0u8; 4];
+        // stream.read_exact(&mut version)?;
+        let version = i32::consensus_decode_from_finite_reader(stream).unwrap();
 
-        let num_inputs = read_varint(stream)?;
+        let inputs = TxIn::parse(stream).unwrap();
 
-        let mut inputs = Vec::new();
-        for _ in 0..num_inputs {
-            inputs.push(TxIn::parse(stream)?)
-        }
+        // let mut inputs = Vec::new();
+        // for _ in 0..num_inputs {
+        //     inputs.push(TxIn::parse(stream)?)
+        // }
 
-        let num_outputs = read_varint(stream)?;
-        let mut outputs = Vec::new();
-        for _ in 0..num_outputs {
-            outputs.push(TxOut::parse(stream)?)
-        }
+        // let num_outputs = read_varint(stream)?;
+        let outputs = TxOut::parse(stream).unwrap();
+        // for _ in 0..num_outputs {
+        //     outputs.push(TxOut::parse(stream)?)
+        // }
 
         // let mut locktime = [0u8; 4];
         // stream.read_exact(&mut locktime)?;
 
         Ok(Self {
-            version: u32::from_le_bytes(version),
-            tx_ins: None,
-            tx_outs: Some(outputs),
+            version,
+            tx_ins: inputs,
+            tx_outs: outputs,
             locktime: 0,
             testnet,
         })
@@ -78,10 +80,17 @@ impl Tx {
 mod tests {
     use std::io::Cursor;
 
-    use bitcoin::{Transaction, consensus::deserialize};
     use hex::FromHex;
 
     use crate::Tx;
+    #[cfg(test)]
+    mod test_macros {
+        macro_rules! hex {
+            ($hex:expr) => (
+            <Vec<u8>>  as $crate::hex::FromHex>::from_hex($hex).unwrap()
+            );
+        }
+    }
 
     #[test]
     fn test_parse_tx() {
@@ -105,9 +114,13 @@ b6dbf67d4750b0a56244948a87988ac005a6202000000001976a9143c82d7df364eb6c75be8c80\
 df2b3eda8db57397088ac46430600";
 
         let stream = Vec::from_hex(hex_transaction).unwrap();
-        // let mut cursor = Cursor::new(stream);
-        // let tx_obj = Tx::parse(&mut cursor, false).unwrap();
-        let tx: Transaction = deserialize(&stream).unwrap();
+        let mut decoder = Cursor::new(stream);
+
+        // let (rv, consumed) = deserialize_partial(&stream).unwrap();
+        let tx_obj = Tx::parse(&mut decoder, false).unwrap();
+        assert_eq!(tx_obj.tx_outs[1].amount, 40000000);
+
+        // let tx: Transaction = deserialize(&stream).unwrap();
 
         //         assert_eq!(
         //             tx_obj.tx_ins.unwrap()[1].script_sig,
@@ -115,7 +128,5 @@ df2b3eda8db57397088ac46430600";
         // b422690b8461cb52c3cc30330b23d574351872b7c361e9aae3649071c1a71601 035d5c93d9ac9\
         // 6881f19ba1f686f15f009ded7c62efe85a872e6a19b43c15a2937"
         //         )
-
-        assert_eq!(tx.output[1].value, 40000000);
     }
 }
