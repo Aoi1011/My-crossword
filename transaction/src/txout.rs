@@ -7,14 +7,14 @@ use bitcoin::consensus::{encode::MAX_VEC_SIZE, Decodable};
 use script::Script;
 
 pub struct TxOut {
-    pub amount: u64,
+    pub value: u64,
     pub script_pubkey: Script,
 }
 
 impl TxOut {
-    pub fn new(amount: u64, script_pubkey: Script) -> Self {
+    pub fn new(value: u64, script_pubkey: Script) -> Self {
         Self {
-            amount,
+            value,
             script_pubkey,
         }
     }
@@ -46,7 +46,7 @@ impl Decodable for TxOut {
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         Ok(Self {
-            amount: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
+            value: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
             script_pubkey: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
         })
     }

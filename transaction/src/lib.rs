@@ -83,14 +83,6 @@ mod tests {
     use hex::FromHex;
 
     use crate::Tx;
-    #[cfg(test)]
-    mod test_macros {
-        macro_rules! hex {
-            ($hex:expr) => (
-            <Vec<u8>>  as $crate::hex::FromHex>::from_hex($hex).unwrap()
-            );
-        }
-    }
 
     #[test]
     fn test_parse_tx() {
@@ -118,7 +110,7 @@ df2b3eda8db57397088ac46430600";
 
         // let (rv, consumed) = deserialize_partial(&stream).unwrap();
         let tx_obj = Tx::parse(&mut decoder, false).unwrap();
-        assert_eq!(tx_obj.tx_outs[1].amount, 40000000);
+        assert_eq!(tx_obj.tx_outs[1].value, 40000000);
 
         // let tx: Transaction = deserialize(&stream).unwrap();
 

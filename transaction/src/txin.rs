@@ -3,27 +3,22 @@ use std::{
     mem,
 };
 
-use bitcoin::consensus::{encode::MAX_VEC_SIZE, Decodable};
+use bitcoin::{
+    consensus::{encode::MAX_VEC_SIZE, Decodable},
+    OutPoint, Sequence,
+};
 use script::Script;
 
 pub struct TxIn {
-    pub prev_tx: u32,
-    pub prev_index: u32,
+    pub previous_output: OutPoint,
     pub script_sig: Script,
-    pub sequence: u32,
+    pub sequence: Sequence,
 }
 
 impl TxIn {
-    pub fn new(prev_tx: u32, prev_index: u32, script_sig: Option<Script>, sequence: u32) -> Self {
-        let script_sig = if script_sig.is_none() {
-            Script::new(vec![])
-        } else {
-            script_sig.unwrap()
-        };
-
+    pub fn new(previous_output: OutPoint, script_sig: Script, sequence: Sequence) -> Self {
         Self {
-            prev_tx,
-            prev_index,
+            previous_output,
             script_sig,
             sequence,
         }
@@ -68,8 +63,7 @@ impl Decodable for TxIn {
         reader: &mut R,
     ) -> Result<Self, bitcoin::consensus::encode::Error> {
         Ok(TxIn {
-            prev_tx: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
-            prev_index: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
+            previous_output: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
             script_sig: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
             sequence: Decodable::consensus_decode_from_finite_reader(reader).unwrap(),
         })
