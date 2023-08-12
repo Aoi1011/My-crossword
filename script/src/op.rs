@@ -1,4 +1,4 @@
-use elliptic_curves::helper::hash256;
+use elliptic_curves::helper::{hash160, hash256};
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 
@@ -918,9 +918,17 @@ pub fn op_sha256(stack: &mut Vec<u8>) -> bool {
     true
 }
 
-// pub fn op_hash160(stack: &mut Vec<u8>) -> bool {
-//     true
-// }
+pub fn op_hash160(stack: &mut Vec<u8>) -> bool {
+    if stack.is_empty() {
+        return false;
+    }
+
+    if let Some(element) = stack.pop() {
+        stack.append(&mut hash160(&element.to_be_bytes().to_vec()));
+    };
+
+    true
+}
 
 pub fn op_hash256(stack: &mut Vec<u8>) -> bool {
     if stack.is_empty() {
