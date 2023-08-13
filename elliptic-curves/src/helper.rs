@@ -91,14 +91,9 @@ pub fn little_endian_bytes_to_u64(bytes: &[u8]) -> u64 {
     result
 }
 
-pub fn int_to_little_endian(mut n: u128, size: usize) -> Vec<u8> {
-    let mut result = Vec::with_capacity(size);
-    for _ in 0..size {
-        result.push((n & 0xff) as u8);
-        n >>= 8;
-    }
-    // Reversing the order to match little-endian representation
-    result.reverse();
+pub fn int_to_little_endian(n: u128, size: usize) -> Vec<u8> {
+    let mut result = vec![0; size];
+    result.copy_from_slice(&n.to_le_bytes()[..size]);
     result
 }
 
@@ -165,6 +160,22 @@ pub fn encode_varint(i: u128) -> Vec<u8> {
             panic!("integer too large: {}", i)
         }
     }
+}
+
+pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
+    if let Some(exponent) = bits.last() {
+        let bits_clone = bits.clone();
+        let bits_without_last = bits_clone
+            .split_last()
+            .map(|(_, rest)| rest)
+            .unwrap();
+        let coefficient = little_endian_bytes_to_u64(&bits_without_last);
+        let coefficient = BigUint::from_u64(coefficient).unwrap();
+        let base = BigUint::from_u64(256).unwrap();
+        let res = coefficient * base.pow(*exponent as u32 - 3);
+        return Some(res);
+    };
+    None
 }
 
 #[cfg(test)]
