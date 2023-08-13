@@ -165,8 +165,6 @@ pub fn encode_varint(i: u128) -> Vec<u8> {
 pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
     if let Some(exponent) = bits.last() {
         let bits_clone = bits.clone();
-        // TODO
-        // bits_clone.reverse();
         let bits_without_last = bits_clone
             .split_last()
             .map(|(_, rest)| rest)

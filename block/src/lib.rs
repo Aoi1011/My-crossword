@@ -109,22 +109,22 @@ impl Block {
         self.version >> 1 & 1 == 1
     }
 
-    pub fn target(&self) -> Option<BigUint> {
-        bits_to_target(&self.bits)
+    pub fn target(&self) -> BigUint {
+        bits_to_target(&self.bits).unwrap()
     }
 
     pub fn difficulty(&self) -> BigUint {
-        let lowest = 0xffff * 256 * (0x1d - 3);
-        if let Some(target) = self.target() {
-            return BigUint::from_i32(lowest).unwrap() / target;
-        }
-        panic!("cannot get target");
+        let a = BigUint::from_u64(0xffff).unwrap();
+        let base = BigUint::from_u64(256).unwrap();
+        let lowest = a * base.pow(0x1d - 3);
+        let target = self.target();
+        lowest / target
     }
 
     pub fn check_pow(&self) -> bool {
         let sha = hash256(&self.serialize());
         let proof = little_endian_bytes_to_u64(&sha);
-        BigUint::from_u64(proof).unwrap() < self.target().unwrap()
+        BigUint::from_u64(proof).unwrap() < self.target()
     }
 }
 
@@ -217,12 +217,10 @@ f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d";
     fn test_target() {
         let mut block_row = Vec::from_hex("020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d").unwrap();
         let block = Block::parse(&mut block_row).unwrap();
+        let target = block.target();
         assert_eq!(
-            block.target(),
-            Some(
-                BigUint::from_str_radix("13ce9000000000000000000000000000000000000000000", 16)
-                    .unwrap()
-            )
+            target,
+            BigUint::from_str_radix("13ce9000000000000000000000000000000000000000000", 16).unwrap()
         );
         assert_eq!(
             block.difficulty(),
@@ -230,12 +228,15 @@ f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d";
         );
     }
 
-    // #[test]
-    // fn test_difficulty() {
-    //     let mut block_row = Vec::from_hex("020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d").unwrap();
-    //     let block = Block::parse(&mut block_row).unwrap();
-    //     assert_eq!(block.difficulty(), 888171856257);
-    // }
+    #[test]
+    fn test_difficulty() {
+        let mut block_row = Vec::from_hex("020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d").unwrap();
+        let block = Block::parse(&mut block_row).unwrap();
+        assert_eq!(
+            block.difficulty(),
+            BigUint::from_str("888171856257").unwrap()
+        );
+    }
 
     #[test]
     fn test_check_pow() {
