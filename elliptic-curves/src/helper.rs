@@ -162,12 +162,20 @@ pub fn encode_varint(i: u128) -> Vec<u8> {
     }
 }
 
-pub fn bits_to_target(bits: &Vec<u8>) -> Option<u64> {
+pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
     if let Some(exponent) = bits.last() {
-        let mut bits_clone = bits.clone();
-        bits_clone.reverse();
-        let coefficient = little_endian_bytes_to_u64(&bits_clone);
-        return Some(coefficient * 256_u64.pow((*exponent - 3) as u32));
+        let bits_clone = bits.clone();
+        // TODO
+        // bits_clone.reverse();
+        let bits_without_last = bits_clone
+            .split_last()
+            .map(|(_, rest)| rest)
+            .unwrap();
+        let coefficient = little_endian_bytes_to_u64(&bits_without_last);
+        let coefficient = BigUint::from_u64(coefficient).unwrap();
+        let base = BigUint::from_u64(256).unwrap();
+        let res = coefficient * base.pow(*exponent as u32 - 3);
+        return Some(res);
     };
     None
 }
