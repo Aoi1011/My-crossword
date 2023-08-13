@@ -167,6 +167,16 @@ pub fn encode_varint(i: u128) -> Vec<u8> {
     }
 }
 
+pub fn bits_to_target(bits: &Vec<u8>) -> Option<u64> {
+    if let Some(exponent) = bits.last() {
+        let mut bits_clone = bits.clone();
+        bits_clone.reverse();
+        let coefficient = little_endian_bytes_to_u64(&bits_clone);
+        return Some(coefficient * 256_u64.pow((*exponent - 3) as u32));
+    };
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::encode_base58;
