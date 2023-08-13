@@ -91,14 +91,9 @@ pub fn little_endian_bytes_to_u64(bytes: &[u8]) -> u64 {
     result
 }
 
-pub fn int_to_little_endian(mut n: u128, size: usize) -> Vec<u8> {
-    let mut result = Vec::with_capacity(size);
-    for _ in 0..size {
-        result.push((n & 0xff) as u8);
-        n >>= 8;
-    }
-    // Reversing the order to match little-endian representation
-    result.reverse();
+pub fn int_to_little_endian(n: u128, size: usize) -> Vec<u8> {
+    let mut result = vec![0; size];
+    result.copy_from_slice(&n.to_le_bytes()[..size]);
     result
 }
 
