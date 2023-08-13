@@ -126,7 +126,14 @@ pub fn read_varint<R: Read>(stream: &mut R) -> Result<u64, Error> {
             // 0xff means the next eight bytes are the number
             let mut buf = [0u8; 8];
             stream.read_exact(&mut buf)?;
-            Ok(little_endian_bytes_to_u64(&buf))
+            Ok(u64::from(buf[0])
+                | (u64::from(buf[1]) << 8)
+                | (u64::from(buf[2]) << 16)
+                | (u64::from(buf[3]) << 24)
+                | (u64::from(buf[4]) << 32)
+                | (u64::from(buf[5]) << 40)
+                | (u64::from(buf[6]) << 48)
+                | (u64::from(buf[7]) << 56))
         }
         _ => Ok(i as u64),
     }
