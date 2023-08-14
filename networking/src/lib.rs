@@ -3,6 +3,7 @@ use std::io::{self, Read};
 use elliptic_curves::helper::{hash256, int_to_little_endian, little_endian_bytes_to_u64};
 
 mod version_message;
+mod ver_ack_message;
 
 const NETWORK_MAGIC: &[u8; 4] = b"\xf9\xbe\xb4\xd9";
 const TESTNET_NETWORK_MAGIC: &[u8; 4] = b"\x0b\x11\x09\x07";
