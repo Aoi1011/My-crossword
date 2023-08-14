@@ -102,7 +102,7 @@ impl NetworkEnvelope {
     }
 
     pub fn stream(&self) -> Vec<u8> {
-        self.payload
+        self.payload.clone()
     }
 }
 
