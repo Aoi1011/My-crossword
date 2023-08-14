@@ -1,0 +1,21 @@
+version: "2"
+
+services:
+  btcd:
+    container_name: btcd
+    hostname: btcd
+    build: https://github.com/btcsuite/btcd.git#master
+    restart: unless-stopped
+    volumes:
+      - btcd-data:/root/.btcd
+    ports:
+      - 18333:18333
+      - 18334:18334
+    command: [
+        "--testnet",
+        "--rpcuser=[CHOOSE_A_USERNAME]",
+        "--rpcpass=[CREATE_A_VERY_HARD_PASSWORD]"
+    ]
+
+volumes:
+  btcd-data:
