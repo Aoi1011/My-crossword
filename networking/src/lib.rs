@@ -2,12 +2,15 @@ use std::io::{self, Read};
 
 use elliptic_curves::helper::{hash256, int_to_little_endian, little_endian_bytes_to_u64};
 
-mod version_message;
+mod message;
+mod simple_node;
 mod ver_ack_message;
+mod version_message;
 
 const NETWORK_MAGIC: &[u8; 4] = b"\xf9\xbe\xb4\xd9";
 const TESTNET_NETWORK_MAGIC: &[u8; 4] = b"\x0b\x11\x09\x07";
 
+#[derive(Debug)]
 pub struct NetworkEnvelope {
     pub command: Vec<u8>,
     pub payload: Vec<u8>,
@@ -79,7 +82,7 @@ impl NetworkEnvelope {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        let mut result =  self.magic.clone();
+        let mut result = self.magic.clone();
 
         let mut command_clone = self.command.clone();
         result.append(&mut command_clone);
@@ -96,6 +99,10 @@ impl NetworkEnvelope {
         result.append(&mut payload_clone);
 
         result
+    }
+
+    pub fn stream(&self) -> Vec<u8> {
+        self.payload
     }
 }
 
