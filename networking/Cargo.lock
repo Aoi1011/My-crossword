@@ -115,6 +115,7 @@ dependencies = [
  "hex",
  "num-bigint",
  "num-traits",
+ "rand",
 ]
 
 [[package]]

@@ -10,3 +10,4 @@ elliptic-curves = { path = "../elliptic-curves" }
 hex = "0.4.3"
 num-bigint = { version = "0.4.3", features = ["rand"] }
 num-traits = "0.2.16"
+rand = "0.8.5"
