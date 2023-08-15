@@ -2,6 +2,7 @@ use std::io::{self, Read};
 
 use elliptic_curves::helper::{hash256, int_to_little_endian, little_endian_bytes_to_u64};
 
+mod get_headers_message;
 mod message;
 mod ping_message;
 mod pong_message;
