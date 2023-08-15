@@ -2,24 +2,24 @@ use std::io::Read;
 
 use crate::message::Message;
 
-pub const PING_COMMAND: &str = "ping";
+pub const PONG_COMMAND: &str = "pong";
 
-struct PingMessage {
-    nonce: Vec<u8>,
+pub struct PongMessage {
+    pub nonce: Vec<u8>,
 }
 
-impl PingMessage {
+impl PongMessage {
     pub fn new(nonce: Vec<u8>) -> Self {
         Self { nonce }
     }
 }
 
-impl Message for PingMessage {
+impl Message for PongMessage {
     fn command() -> String
     where
         Self: Sized,
     {
-        PING_COMMAND.to_string()
+        PONG_COMMAND.to_string()
     }
 
     fn parse(stream: Vec<u8>) -> Self

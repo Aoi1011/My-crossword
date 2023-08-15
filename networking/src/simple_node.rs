@@ -6,6 +6,8 @@ use std::{
 
 use crate::{
     message::Message,
+    ping_message::PING_COMMAND,
+    pong_message::PongMessage,
     ver_ack_message::VerAckMessage,
     version_message::{VersionMessage, VERSION_COMMAND},
     NetworkEnvelope,
@@ -78,7 +80,9 @@ impl SimpleNode {
                 VERSION_COMMAND => {
                     self.send(&VerAckMessage::new())?;
                 }
-
+                PING_COMMAND => {
+                    self.send(&PongMessage::new(envelope.payload))?;
+                }
                 _ => {}
             }
         }

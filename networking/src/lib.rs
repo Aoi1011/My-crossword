@@ -4,6 +4,7 @@ use elliptic_curves::helper::{hash256, int_to_little_endian, little_endian_bytes
 
 mod message;
 mod ping_message;
+mod pong_message;
 mod simple_node;
 mod ver_ack_message;
 mod version_message;
