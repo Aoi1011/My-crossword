@@ -3,6 +3,7 @@ use std::io::{self, Read};
 use elliptic_curves::helper::{hash256, int_to_little_endian, little_endian_bytes_to_u64};
 
 mod message;
+mod ping_message;
 mod simple_node;
 mod ver_ack_message;
 mod version_message;
