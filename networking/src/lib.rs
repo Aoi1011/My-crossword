@@ -143,4 +143,7 @@ mod tests {
 
         assert_eq!(envelope.serialize(), msg);
     }
+
+    #[test]
+    fn test_network() {}
 }
