@@ -178,6 +178,13 @@ pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
     None
 }
 
+pub fn merkle_parent(hash1: &mut Vec<u8>, hash2: &mut Vec<u8>) -> [u8; 32]{
+    let mut res = Vec::new();
+    res.append(hash1);
+    res.append(hash2);
+    hash256(&res)
+}
+
 #[cfg(test)]
 mod tests {
     use super::encode_base58;
