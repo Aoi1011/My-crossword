@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./merkleblock/Cargo.toml",
+        "./merkleblock/Cargo.toml"
+    ]
+}
