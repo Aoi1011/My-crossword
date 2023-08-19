@@ -1,10 +1,8 @@
-use hex::ToHex;
-
 #[derive(Debug)]
 pub struct MerkleTree {
     total: u16,
     max_depth: u32,
-    nodes: Vec<Option<Vec<u8>>>,
+    nodes: Vec<Vec<Option<Vec<u8>>>>,
     current_depth: u16,
     current_index: u16,
 }
@@ -59,6 +57,7 @@ impl std::fmt::Display for MerkleTree {
 
 #[cfg(test)]
 mod tests {
+    use elliptic_curves::helper::merkle_parent_level;
     use hex::FromHex;
 
     use super::*;
@@ -72,6 +71,8 @@ mod tests {
         assert_eq!(tree.nodes[2].len(), 3);
         assert_eq!(tree.nodes[3].len(), 5);
         assert_eq!(tree.nodes[4].len(), 9);
+
+        println!("{}", tree);
     }
 
     #[test]
@@ -94,7 +95,7 @@ mod tests {
             "c555bc5fc3bc096df0a0c9532f07640bfb76bfe4fc1ace214b8b228a1297a4c2",
             "f9dbfafc3af3400954975da24eb325e326960a25b87fffe23eef3e7ed2fb610e",
         ];
-        let tree = MerkleTree::new(hex_hashes.len() as u16);
+        let mut tree = MerkleTree::new(hex_hashes.len() as u16);
 
         let hashes: Vec<Option<Vec<u8>>> = hex_hashes
             .iter()
@@ -102,5 +103,11 @@ mod tests {
             .collect();
 
         tree.nodes[4] = hashes;
+        tree.nodes[3] = merkle_parent_level(&mut tree.nodes[4]);
+        tree.nodes[2] = merkle_parent_level(&mut tree.nodes[3]);
+        tree.nodes[1] = merkle_parent_level(&mut tree.nodes[2]);
+        tree.nodes[0] = merkle_parent_level(&mut tree.nodes[1]);
+
+        println!("{}", tree);
     }
 }

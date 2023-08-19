@@ -178,14 +178,19 @@ pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
     None
 }
 
-pub fn merkle_parent(hash1: &mut [u8; 32], hash2: &mut [u8; 32]) -> [u8; 32] {
+pub fn merkle_parent(hash1: &mut Option<Vec<u8>>, hash2: &mut Option<Vec<u8>>) -> Vec<u8> {
     let mut res = Vec::new();
-    res.append(&mut hash1.to_vec());
-    res.append(&mut hash2.to_vec());
-    hash256(&res)
+    match (hash1, hash2) {
+        (Some(h1), Some(h2)) => {
+            res.append(&mut h1.to_vec());
+            res.append(&mut h2.to_vec());
+            hash256(&res).to_vec()
+        }
+        _ => Vec::new(),
+    }
 }
 
-pub fn merkle_parent_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
+pub fn merkle_parent_level(hashes: &mut Vec<Option<Vec<u8>>>) -> Vec<Option<Vec<u8>>> {
     if hashes.len() == 1 {
         panic!("cannot take a parent level with only 1 item");
     }
@@ -197,30 +202,34 @@ pub fn merkle_parent_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
     }
 
     let parent_level = hashes
-        .windows(2)
+        .chunks(2)
         .map(|hash| {
             let mut first_clone = hash[0].clone();
             let mut second_clone = hash[1].clone();
             let parent = merkle_parent(&mut first_clone, &mut second_clone);
-            parent
+            Some(parent)
         })
-        .collect::<Vec<[u8; 32]>>();
+        .collect::<Vec<Option<Vec<u8>>>>();
 
     parent_level
 }
 
-pub fn merkle_root(hashes: &mut Vec<[u8; 32]>) -> Vec<u8> {
-    let mut current_level = hashes.clone();
-    while current_level.len() > 1 {
-        current_level = merkle_parent_level(&mut current_level);
-    }
-
-    current_level[0].to_vec()
-}
+// pub fn merkle_root(hashes: &mut Vec<[u8; 32]>) -> Vec<u8> {
+//     let mut current_level = hashes.clone();
+//     while current_level.len() > 1 {
+//         if let Some(level) = merkle_parent_level(&mut current_level) {
+//             current_level = level;
+//         }
+//     }
+//
+//     current_level[0].to_vec()
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::encode_base58;
+    use hex::{FromHex, ToHex};
+
+    use super::{encode_base58, merkle_parent, merkle_parent_level};
 
     #[test]
     fn test_encode_base58() {
@@ -241,5 +250,52 @@ mod tests {
         res = encode_base58(&s);
 
         assert_eq!(res, "EQJsjkd6JaGwxrjEhfeqPenqHwrBmPQZjJGNSCHBkcF7");
+    }
+
+    #[test]
+    fn test_merkle_parent() {
+        let hash0 = hex::decode("c117ea8ec828342f4dfb0ad6bd140e03a50720ece40169ee38bdc15d9eb64cf5")
+            .unwrap();
+        let hash1 = hex::decode("c131474164b412e3406696da1ee20ab0fc9bf41c8f05fa8ceea7a08d672d7cc5")
+            .unwrap();
+
+        let parent = merkle_parent(&mut Some(hash0), &mut Some(hash1));
+
+        assert_eq!(
+            parent.encode_hex::<String>(),
+            "8b30c5ba100f6f2e5ad1e2a742e5020491240f8eb514fe97c713c31718ad7ecd".to_string()
+        );
+    }
+
+    #[test]
+    fn test_merkle_parent_level() {
+        let hex_hashes = vec![
+            "c117ea8ec828342f4dfb0ad6bd140e03a50720ece40169ee38bdc15d9eb64cf5",
+            "c131474164b412e3406696da1ee20ab0fc9bf41c8f05fa8ceea7a08d672d7cc5",
+            "f391da6ecfeed1814efae39e7fcb3838ae0b02c02ae7d0a5848a66947c0727b0",
+            "3d238a92a94532b946c90e19c49351c763696cff3db400485b813aecb8a13181",
+            "10092f2633be5f3ce349bf9ddbde36caa3dd10dfa0ec8106bce23acbff637dae",
+        ];
+        let mut hashes: Vec<Option<Vec<u8>>> = hex_hashes
+            .iter()
+            .map(|h| Some(Vec::from_hex(h).unwrap()))
+            .collect();
+
+        let parent = merkle_parent_level(&mut hashes);
+
+        let mut res = Vec::new();
+        for bytes in parent {
+            if let Some(byte) = bytes {
+                res.push(byte.encode_hex::<String>());
+            }
+        }
+
+        let expect = vec![
+            "8b30c5ba100f6f2e5ad1e2a742e5020491240f8eb514fe97c713c31718ad7ecd",
+            "7f4e6f9e224e20fda0ae4c44114237f97cd35aca38d83081c9bfd41feb907800",
+            "3ecf6115380c77e8aae56660f5634982ee897351ba906a6837d15ebc3a225df0",
+        ];
+
+        assert_eq!(res, expect);
     }
 }
