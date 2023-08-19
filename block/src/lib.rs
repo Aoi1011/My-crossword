@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 
 use elliptic_curves::helper::{
-    bits_to_target, hash256, int_to_little_endian, little_endian_bytes_to_u64,
+    bits_to_target, hash256, int_to_little_endian, little_endian_bytes_to_u64, merkle_root,
 };
 use num_bigint::BigUint;
 use num_traits::FromPrimitive;
@@ -17,6 +17,7 @@ pub struct Block {
     timestamp: u64,
     bits: Vec<u8>,
     nonce: Vec<u8>,
+    tx_hashes: Vec<[u8; 32]>,
 }
 
 impl Block {
@@ -27,6 +28,7 @@ impl Block {
         timestamp: u64,
         bits: Vec<u8>,
         nonce: Vec<u8>,
+        tx_hashes: Vec<[u8; 32]>,
     ) -> Self {
         Self {
             version,
@@ -35,6 +37,7 @@ impl Block {
             timestamp,
             bits,
             nonce,
+            tx_hashes,
         }
     }
 
@@ -69,6 +72,7 @@ impl Block {
             timestamp,
             bits: bits.to_vec(),
             nonce: nonce.to_vec(),
+            tx_hashes: Vec::new(),
         })
     }
 
@@ -129,6 +133,23 @@ impl Block {
         let sha = hash256(&self.serialize());
         let proof = little_endian_bytes_to_u64(&sha);
         BigUint::from_u64(proof).unwrap() < self.target()
+    }
+
+    pub fn validate_merkle_root(&self) -> bool {
+        let mut hashes: Vec<[u8; 32]> = self
+            .tx_hashes
+            .iter()
+            .map(|h| {
+                let mut hash = *h;
+                hash.reverse();
+                hash
+            })
+            .collect();
+
+        let mut root = merkle_root(&mut hashes);
+        root.reverse();
+
+        root == self.merkle_root
     }
 }
 

@@ -1,4 +1,7 @@
-use std::io::{Error, Read};
+use std::{
+    io::{Error, Read},
+    thread::current,
+};
 
 use num_bigint::BigUint;
 use num_integer::Integer;
@@ -165,10 +168,7 @@ pub fn encode_varint(i: u128) -> Vec<u8> {
 pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
     if let Some(exponent) = bits.last() {
         let bits_clone = bits.clone();
-        let bits_without_last = bits_clone
-            .split_last()
-            .map(|(_, rest)| rest)
-            .unwrap();
+        let bits_without_last = bits_clone.split_last().map(|(_, rest)| rest).unwrap();
         let coefficient = little_endian_bytes_to_u64(&bits_without_last);
         let coefficient = BigUint::from_u64(coefficient).unwrap();
         let base = BigUint::from_u64(256).unwrap();
@@ -176,6 +176,46 @@ pub fn bits_to_target(bits: &Vec<u8>) -> Option<BigUint> {
         return Some(res);
     };
     None
+}
+
+pub fn merkle_parent(hash1: &mut [u8; 32], hash2: &mut [u8; 32]) -> [u8; 32] {
+    let mut res = Vec::new();
+    res.append(&mut hash1.to_vec());
+    res.append(&mut hash2.to_vec());
+    hash256(&res)
+}
+
+pub fn merkle_parent_level(hashes: &mut Vec<[u8; 32]>) -> Vec<[u8; 32]> {
+    if hashes.len() == 1 {
+        panic!("cannot take a parent level with only 1 item");
+    }
+
+    if hashes.len() % 2 == 1 {
+        let last = hashes.last().unwrap();
+        let last_clone = last.clone();
+        hashes.push(last_clone);
+    }
+
+    let parent_level = hashes
+        .windows(2)
+        .map(|hash| {
+            let mut first_clone = hash[0].clone();
+            let mut second_clone = hash[1].clone();
+            let parent = merkle_parent(&mut first_clone, &mut second_clone);
+            parent
+        })
+        .collect::<Vec<[u8; 32]>>();
+
+    parent_level
+}
+
+pub fn merkle_root(hashes: &mut Vec<[u8; 32]>) -> Vec<u8> {
+    let mut current_level = hashes.clone();
+    while current_level.len() > 1 {
+        current_level = merkle_parent_level(&mut current_level);
+    }
+
+    current_level[0].to_vec()
 }
 
 #[cfg(test)]
