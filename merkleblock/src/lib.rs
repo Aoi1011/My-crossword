@@ -1,12 +1,13 @@
 use elliptic_curves::helper::merkle_parent;
+use num_traits::ToPrimitive;
 
 #[derive(Debug)]
 pub struct MerkleTree {
     total: u16,
-    max_depth: u32,
+    max_depth: f64,
     nodes: Vec<Vec<Option<Vec<u8>>>>,
-    current_depth: u32,
-    current_index: u32,
+    current_depth: f64,
+    current_index: f64,
 }
 
 impl MerkleTree {
@@ -23,26 +24,26 @@ impl MerkleTree {
 
         Self {
             total,
-            max_depth,
+            max_depth: max_depth as f64,
             nodes,
-            current_depth: 0,
-            current_index: 0,
+            current_depth: 0_f64,
+            current_index: 0_f64,
         }
     }
 
     pub fn up(&mut self) {
-        self.current_depth -= 1;
-        self.current_index /= 2;
+        self.current_depth -= 1_f64;
+        self.current_index /= 2_f64;
     }
 
     pub fn left(&mut self) {
-        self.current_depth += 1;
-        self.current_index *= 2;
+        self.current_depth += 1_f64;
+        self.current_index *= 2_f64;
     }
 
     pub fn right(&mut self) {
-        self.current_depth += 1;
-        self.current_index = self.current_index * 2 + 1;
+        self.current_depth += 1_f64;
+        self.current_index = self.current_index * 2_f64 + 1_f64;
     }
 
     pub fn root(&self) -> &Option<Vec<u8>> {
@@ -54,15 +55,42 @@ impl MerkleTree {
     }
 
     pub fn get_current_node(&self) -> &Option<Vec<u8>> {
-        &self.nodes[self.current_depth as usize][self.current_index as usize]
+        let current_dep = self.current_depth.to_usize();
+        let current_idx = self.current_index.to_usize();
+
+        match (current_dep, current_idx) {
+            (Some(dep), Some(idx)) => {
+                &self.nodes[dep][idx]
+            }
+            _ => panic!("error to get current node")
+        }
+        
     }
 
     pub fn get_left_node(&self) -> &Option<Vec<u8>> {
-        &self.nodes[(self.current_depth + 1) as usize][(self.current_index * 2) as usize]
+        let current_dep = (self.current_depth + 1_f64).to_usize();
+        let current_idx = (self.current_index * 2_f64).to_usize();
+
+        match (current_dep, current_idx) {
+            (Some(dep), Some(idx)) => {
+                &self.nodes[dep][idx]
+            },
+            _ => panic!("error to get left node"),
+        }
+        
     }
 
     pub fn get_right_node(&self) -> &Option<Vec<u8>> {
-        &self.nodes[(self.current_depth + 1) as usize][(self.current_index * 2 + 1) as usize]
+        let current_dep = (self.current_depth + 1_f64).to_usize();
+        let current_idx = (self.current_index * 2_f64 + 1_f64).to_usize();
+
+        match (current_dep, current_idx) {
+            (Some(dep), Some(idx)) => {
+                &self.nodes[dep][idx]
+            },
+            _ => panic!("error to get right node"),
+        }
+        
     }
 
     pub fn is_leaf(&self) -> bool {
@@ -70,7 +98,16 @@ impl MerkleTree {
     }
 
     pub fn right_exists(&self) -> bool {
-        self.nodes[(self.current_depth + 1) as usize].len() > (self.current_index * 2 + 1) as usize
+        let current_dep = (self.current_depth + 1_f64).to_usize();
+        let current_idx = (self.current_index * 2_f64 + 1_f64).to_usize();
+
+        match (current_dep, current_idx) {
+            (Some(dep), Some(idx)) => {
+                self.nodes[dep].len() > idx
+            },
+            _ => panic!("error to evaluate whether right node exists"),
+        }
+        
     }
 
     pub fn populate_tree(&mut self, flag_bits: &mut Vec<u8>, hashes: &mut Vec<Option<Vec<u8>>>) {
