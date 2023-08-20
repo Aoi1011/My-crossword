@@ -59,12 +59,9 @@ impl MerkleTree {
         let current_idx = self.current_index.to_usize();
 
         match (current_dep, current_idx) {
-            (Some(dep), Some(idx)) => {
-                &self.nodes[dep][idx]
-            }
-            _ => panic!("error to get current node")
+            (Some(dep), Some(idx)) => &self.nodes[dep][idx],
+            _ => panic!("error to get current node"),
         }
-        
     }
 
     pub fn get_left_node(&self) -> &Option<Vec<u8>> {
@@ -72,12 +69,9 @@ impl MerkleTree {
         let current_idx = (self.current_index * 2_f64).to_usize();
 
         match (current_dep, current_idx) {
-            (Some(dep), Some(idx)) => {
-                &self.nodes[dep][idx]
-            },
+            (Some(dep), Some(idx)) => &self.nodes[dep][idx],
             _ => panic!("error to get left node"),
         }
-        
     }
 
     pub fn get_right_node(&self) -> &Option<Vec<u8>> {
@@ -85,12 +79,9 @@ impl MerkleTree {
         let current_idx = (self.current_index * 2_f64 + 1_f64).to_usize();
 
         match (current_dep, current_idx) {
-            (Some(dep), Some(idx)) => {
-                &self.nodes[dep][idx]
-            },
+            (Some(dep), Some(idx)) => &self.nodes[dep][idx],
             _ => panic!("error to get right node"),
         }
-        
     }
 
     pub fn is_leaf(&self) -> bool {
@@ -102,12 +93,9 @@ impl MerkleTree {
         let current_idx = (self.current_index * 2_f64 + 1_f64).to_usize();
 
         match (current_dep, current_idx) {
-            (Some(dep), Some(idx)) => {
-                self.nodes[dep].len() > idx
-            },
+            (Some(dep), Some(idx)) => self.nodes[dep].len() > idx,
             _ => panic!("error to evaluate whether right node exists"),
         }
-        
     }
 
     pub fn populate_tree(&mut self, flag_bits: &mut Vec<u8>, hashes: &mut Vec<Option<Vec<u8>>>) {
@@ -130,19 +118,26 @@ impl MerkleTree {
                     if right_hash.is_none() {
                         self.right();
                     } else {
-                        self.set_current_node(Some(merkle_parent(
-                            &mut left_hash.clone(),
-                            &mut right_hash.clone(),
-                        )));
+                        let parent_hash =
+                            merkle_parent(&mut left_hash.clone(), &mut right_hash.clone());
+                        self.set_current_node(Some(parent_hash));
                         self.up();
                     }
                 } else {
-                    self.set_current_node(Some(merkle_parent(
-                        &mut left_hash.clone(),
-                        &mut left_hash.clone(),
-                    )));
+                    let parent_hash = merkle_parent(&mut left_hash.clone(), &mut left_hash.clone());
+                    self.set_current_node(Some(parent_hash));
                     self.up();
                 }
+            }
+        }
+
+        if hashes.len() != 0 {
+            panic!("hashes not all consumed {}", hashes.len());
+        }
+
+        for flag_bit in flag_bits {
+            if *flag_bit != 0 {
+                panic!("flag bit not all consumed");
             }
         }
     }
